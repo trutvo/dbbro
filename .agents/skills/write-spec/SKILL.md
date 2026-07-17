@@ -28,6 +28,7 @@ You are running the `write-spec` skill. Input: `$ARGUMENTS` — the epic name or
 
 - Target path: `specs/<num>_<one_liner>-spec.md`.
 - If it already exists, read it and update via `Edit` rather than overwriting. Preserve any `[x]` ticks the user already made in §9.
+- Even if the PRD is unchanged and every section already looks correct, still run the full confidence re-scoring pass below and write its result to the file — never skip straight to a "no update needed" report without an `Edit` call.
 
 ## 3. Spec skeleton
 
@@ -116,7 +117,9 @@ Strict rules:
 
 ### Confidence score
 
-After writing or updating the spec, score your confidence on a 0–100 scale across:
+**This step is mandatory on every single invocation of this skill, with no exceptions** — including when the spec file already exists, already covers the PRD fully, and nothing in the PRD changed since the last run. "This spec is already up to date" is never a substitute for re-reading the current spec and PRD and re-scoring them now. A verbal report to the user without a corresponding `Write`/`Edit` to the spec file does not satisfy this step.
+
+Re-read the spec's and PRD's current content fresh (do not rely on your memory of a previous pass) and score your confidence on a 0–100 scale across:
 
 - Every PRD FR/NFR/AC appears in §2 and is closed by at least one §6 task.
 - Architecture in §3 is concrete enough to start T1 without further design.
@@ -124,13 +127,13 @@ After writing or updating the spec, score your confidence on a 0–100 scale acr
 - Open decisions in §9 are genuinely high-impact (not parking lots) and each has a clear Recommended option.
 - No invented requirements; assumptions are explicit.
 
-Lowest axis wins. Overwrite the blockquote line directly under the `# Epic …` heading to read:
+Lowest axis wins. Overwrite the blockquote line directly under the `# Epic …` heading, via `Edit`, to read:
 
 ```
 > **Confidence:** ~<NN>% after revision <R> — <one-line summary of the biggest remaining gap>
 ```
 
-Increment `<R>` on every run. There is exactly one confidence line per spec — never append a second.
+Increment `<R>` on every run, even when the resulting score and gap summary are unchanged from the last revision — the revision counter is evidence that a fresh analysis pass happened, not just that content changed. There is exactly one confidence line per spec — never append a second.
 
 ## 4. Hard rules
 
