@@ -35,6 +35,19 @@ searchable, its primary key, and optionally a list of relations to other
 tables (local/foreign column pair plus a human-readable label used when
 navigating to related entries in the UI).
 
+### DB connection
+
+There is also a config file `database` that has the database connection.
+
+```
+database:
+  host:
+  name:
+  user:
+  password:
+```
+
+If the password is not set, dbbro will look for the env var `DBBRO_DB_PWD`
 
 ## UI
 

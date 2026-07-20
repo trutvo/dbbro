@@ -8,13 +8,21 @@ configuration file, with no generic/free-form query capability.
 
 ## Dependency graph
 
-| Epic | Depends on      | Can start in parallel with |
-| ---- | --------------- | -------------------------- |
-| EP-1 | —                | —                           |
-| EP-2 | EP-1             | —                           |
-| EP-3 | EP-1, EP-2       | EP-5                        |
-| EP-4 | EP-1, EP-2, EP-3 | EP-5                        |
-| EP-5 | EP-1, EP-2       | EP-3, EP-4                  |
+| Epic | Depends on             | Can start in parallel with |
+| ---- | ---------------------- | -------------------------- |
+| EP-1 | —                      | EP-6                       |
+| EP-6 | EP-1                   | —                          |
+| EP-2 | EP-1, EP-6             | —                          |
+| EP-3 | EP-1, EP-2, EP-6       | EP-5                       |
+| EP-4 | EP-1, EP-2, EP-3, EP-6 | EP-5                       |
+| EP-5 | EP-1, EP-2, EP-6       | EP-3, EP-4                 |
+
+EP-6 (Database Connection Configuration) is new: EP-2's search lookups and
+EP-3's relation lookups both require an established database connection to
+actually run a query, so both now depend on EP-6 in addition to their
+existing dependencies. EP-6 itself only depends on EP-1, since it extends
+the same configuration file with a `database` section rather than
+introducing a second config mechanism.
 
 ---
 
@@ -38,6 +46,29 @@ against a table, column, or relation that is not declared in it.
   relation to the user.
 - If the configuration is missing, unreadable, or structurally invalid,
   dbbro reports an error identifying the problem instead of starting.
+
+---
+
+## EP-6 — Database Connection Configuration
+
+An operator can declare, in the same configuration file used for the
+schema, how dbbro should connect to the actual database — host, database
+name, and user — without the password needing to live in that file.
+
+**Acceptance criteria**
+
+- Given a configuration file with a `database` section specifying host,
+  database name, user, and password, dbbro connects to that database on
+  startup using those values.
+- Given a `database` section that omits the password, dbbro reads the
+  password from the `DBBRO_DB_PWD` environment variable instead.
+- Given a `database` section missing a required value (host, database name,
+  or user) with no password available from either the file or the
+  environment variable, dbbro reports an error identifying the missing
+  piece instead of starting.
+- Given a valid `database` section but a connection that cannot be
+  established (e.g. unreachable host, rejected credentials), dbbro reports
+  an error describing the connection failure instead of starting.
 
 ---
 
