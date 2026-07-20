@@ -10,12 +10,15 @@ configuration file, with no generic/free-form query capability.
 
 | Epic | Depends on             | Can start in parallel with |
 | ---- | ---------------------- | -------------------------- |
-| EP-1 | —                      | EP-6                       |
-| EP-6 | EP-1                   | —                          |
-| EP-2 | EP-1, EP-6             | —                          |
-| EP-3 | EP-1, EP-2, EP-6       | EP-5                       |
-| EP-4 | EP-1, EP-2, EP-3, EP-6 | EP-5                       |
-| EP-5 | EP-1, EP-2, EP-6       | EP-3, EP-4                 |
+| Epic | Depends on                  | Can start in parallel with |
+| ---- | --------------------------- | -------------------------- |
+| EP-1 | —                           | EP-6                       |
+| EP-6 | EP-1                        | —                          |
+| EP-2 | EP-1, EP-6                  | —                          |
+| EP-3 | EP-1, EP-2, EP-6            | EP-5                       |
+| EP-4 | EP-1, EP-2, EP-3, EP-6      | EP-5                       |
+| EP-5 | EP-1, EP-2, EP-6            | EP-3, EP-4                 |
+| EP-7 | EP-1, EP-2, EP-3, EP-5, EP-6 | EP-4                       |
 
 EP-6 (Database Connection Configuration) is new: EP-2's search lookups and
 EP-3's relation lookups both require an established database connection to
@@ -23,6 +26,13 @@ actually run a query, so both now depend on EP-6 in addition to their
 existing dependencies. EP-6 itself only depends on EP-1, since it extends
 the same configuration file with a `database` section rather than
 introducing a second config mechanism.
+
+EP-7 (Terminal Rendering) is new: it depends on EP-2, EP-3, and EP-5
+because it must actually draw every screen those epics defined (search
+dialog, value prompt, table view, match list, error notice) — it has
+nothing to render until those screens exist. It does not depend on EP-4,
+since browsing history reuses EP-2/EP-3's existing screens rather than
+introducing a new one, so EP-7 can proceed in parallel with EP-4.
 
 ---
 
@@ -141,3 +151,36 @@ notice and keep working.
 - The error notice remains on screen until the operator presses Return.
 - Pressing Return closes the error notice and returns the operator to the
   view they were on before the error occurred.
+
+---
+
+## EP-7 — Terminal Rendering
+
+An operator actually sees dbbro's screens drawn in the terminal — the
+search selection dialog, the search value prompt, the table view, the
+match/selection list, and the error notice — instead of a blank screen,
+using the panel and modal box-drawing styles described in the briefing.
+
+**Acceptance criteria**
+
+- The search selection dialog is drawn as a modal box (double-line border)
+  listing each table/column pair, with the currently highlighted pair
+  visually distinguished from the others.
+- The search value prompt is drawn as a modal box (double-line border)
+  showing the selected table/column label alongside the text the operator
+  has typed so far.
+- A record's table view is drawn as a bordered panel (single-line border)
+  with one row per configured column, each row showing the column name and
+  its value, labeled with the table name.
+- Within a drawn table view, the field the operator has selected is
+  visually distinguished from the others, and a relation field's value is
+  shown in the `<related table name>[<foreign key value>]` format.
+- When a search or relation lookup matches more than one record, the
+  resulting match/selection list is drawn the same way — one row per
+  candidate record — with the currently highlighted row visually
+  distinguished.
+- The error notice is drawn as a modal box (double-line border) describing
+  the problem, remaining visible until the operator presses Return.
+- Whichever screen is currently active is the only one visibly drawn; no
+  screen is left rendering stale or overlapping content from a screen that
+  is no longer active.

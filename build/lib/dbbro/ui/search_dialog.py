@@ -1,6 +1,9 @@
 from . import keys
+from .screen import draw_modal, update_scroll
 from .search_prompt import SearchValuePrompt
 from .view_stack import Transition
+
+DEFAULT_VISIBLE_HEIGHT = 20
 
 
 class SearchSelectionDialog:
@@ -11,6 +14,7 @@ class SearchSelectionDialog:
         config=None,
         breadcrumb=None,
         history=None,
+        visible_height: int = DEFAULT_VISIBLE_HEIGHT,
     ):
         self.pairs = pairs
         self.conn = conn
@@ -18,16 +22,31 @@ class SearchSelectionDialog:
         self.breadcrumb = breadcrumb
         self.history = history
         self.highlighted = 0
+        self.scroll_offset = 0
+        self.visible_height = visible_height
 
     def render(self, screen) -> None:
-        pass
+        lines = [f"{table}.{column}" for table, column in self.pairs]
+        visible_lines = lines[self.scroll_offset : self.scroll_offset + self.visible_height]
+        draw_modal(
+            screen,
+            visible_lines,
+            highlighted_index=self.highlighted - self.scroll_offset,
+        )
+
+    def _update_scroll(self) -> None:
+        self.scroll_offset = update_scroll(
+            self.highlighted, self.scroll_offset, self.visible_height
+        )
 
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.DOWN:
             self.highlighted = (self.highlighted + 1) % len(self.pairs)
+            self._update_scroll()
             return None
         if key == keys.UP:
             self.highlighted = (self.highlighted - 1) % len(self.pairs)
+            self._update_scroll()
             return None
         if key in keys.RETURN_ALTERNATES:
             table, column = self.pairs[self.highlighted]

@@ -13,9 +13,7 @@ and navigate the tables, columns, and relations the configuration declares.
   declared relations to related records, move back/forward through visited
   records, and see a clear error notice when a search or relation lookup
   fails. See `specs/briefing.md` for the original product brief and
-  `specs/roadmap.md` for the epic breakdown this was built from
-  (see also [README.pre-arc42.md](README.pre-arc42.md) for the prior
-  revision of this document).
+  `specs/roadmap.md` for the epic breakdown this was built from.
 - **Stakeholders** — not documented in the repository; open point below.
 
 ## Setup

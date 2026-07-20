@@ -6,6 +6,7 @@ from ..navigation.breadcrumb import Breadcrumb, BreadcrumbStop
 from . import keys
 from .errors import RelationLookupFailedError
 from .fields import RelationField, build_fields
+from .screen import draw_panel
 from .selection_list import SelectionList
 from .view_stack import Transition
 
@@ -35,7 +36,14 @@ class TableView:
         self.scroll_offset = 0
 
     def render(self, screen) -> None:
-        pass
+        rows = [(field.column, field.value) for field in self.fields]
+        draw_panel(
+            screen,
+            self.table.name,
+            rows,
+            highlighted_index=self.selected,
+            scroll_offset=self.scroll_offset,
+        )
 
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.DOWN:

@@ -1,4 +1,5 @@
 from . import keys
+from .screen import draw_modal
 from .view_stack import Transition
 
 
@@ -22,7 +23,7 @@ class SearchValuePrompt:
         self.cursor = 0
 
     def render(self, screen) -> None:
-        pass
+        draw_modal(screen, [f"{self.table}.{self.column}: {self.buffer}"])
 
     def consumes_navigation_keys(self) -> bool:
         """Always True: this view owns Left/Right as cursor movement within
@@ -38,6 +39,11 @@ class SearchValuePrompt:
             return None
         if key == keys.RIGHT:
             self.cursor = min(len(self.buffer), self.cursor + 1)
+            return None
+        if key in keys.BACKSPACE_ALTERNATES:
+            if self.cursor > 0:
+                self.buffer = self.buffer[: self.cursor - 1] + self.buffer[self.cursor :]
+                self.cursor -= 1
             return None
         if key in keys.RETURN_ALTERNATES:
             if not self.buffer:
