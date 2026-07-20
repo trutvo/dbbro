@@ -2,8 +2,12 @@ from dbbro.ui.screen import PANEL_CHARS, draw_panel
 from tests.stub_screen import StubScreen
 
 
-def _row_text(screen, y):
-    return next(c[2] for c in screen.calls if isinstance(c, tuple) and c[0] == y)
+def _row_text(screen, relative_row):
+    """Returns the text of the `relative_row`-th drawn row, counting from
+    whichever row the box actually starts at (it may be vertically centered,
+    not necessarily row 0)."""
+    rows = sorted(c for c in screen.calls if isinstance(c, tuple))
+    return rows[relative_row][2]
 
 
 def test_header_row_has_vertical_divider_matching_border_column_position():

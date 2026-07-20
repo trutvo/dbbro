@@ -23,9 +23,10 @@ def test_vertical_bars_align_in_the_same_column_across_all_rows():
 
     draw_panel(screen, "T", rows, highlighted_index=0, scroll_offset=0)
 
-    data_lines = [
-        call[2] for call in screen.calls
-        if isinstance(call, tuple) and 3 <= call[0] < 3 + len(rows)
-    ]
+    # Data rows are whichever rows were drawn 3rd through (3+len(rows))th,
+    # counting from wherever the box actually starts (it may be vertically
+    # centered, not necessarily row 0).
+    all_rows = sorted(call for call in screen.calls if isinstance(call, tuple))
+    data_lines = [call[2] for call in all_rows[3 : 3 + len(rows)]]
     bar_positions = {line.find("│", 1) for line in data_lines}  # position of the divider bar
     assert len(bar_positions) == 1, f"divider bar column varies across rows: {bar_positions}"
