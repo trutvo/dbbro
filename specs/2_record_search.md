@@ -2,7 +2,7 @@
 
 PRD for Record Search. Requirements only — no technical or architectural decisions.
 
-> **Confidence:** ~94% after Cycle 2 — all flows, entities, and match-list mechanics are now fully specified with testable acceptance criteria; no open questions remain.
+> **Confidence:** ~94% after Cycle 3 — all flows, entities, and match-list mechanics are fully specified with testable acceptance criteria; the only remaining softness is the two NFRs being thin (ordering/availability only, no performance or locale concerns), which is appropriate given this epic's narrow scope but is the lowest-scoring axis on review.
 
 ## 1. Summary
 
