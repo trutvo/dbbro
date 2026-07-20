@@ -49,7 +49,7 @@ database:
         lambda raw, env: called.append(1) or _fake_config(),
     )
     monkeypatch.setattr(cli, "connect", lambda db_config: "fake-connection")
-    monkeypatch.setattr(cli, "run_ui", lambda config, conn: None)
+    monkeypatch.setattr(cli, "run_ui", lambda config, conn, initial_outcome=None: None)
 
     exit_code = cli.main(["--config", str(config_path)])
 

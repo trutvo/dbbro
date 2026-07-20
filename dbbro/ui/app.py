@@ -7,21 +7,32 @@ from . import keys
 from .errors import OperationFailedError
 from .modals import ErrorNotice, QuitConfirmation
 from .search_dialog import SearchSelectionDialog
+from .search_prompt import _outcome_view
 from .view_stack import ViewStack
 
 
 def build_view_stack(
-    config: Config, conn=None, breadcrumb: Breadcrumb = None, history: History = None
+    config: Config,
+    conn=None,
+    breadcrumb: Breadcrumb = None,
+    history: History = None,
+    initial_outcome=None,
 ) -> ViewStack:
-    return ViewStack(
-        SearchSelectionDialog(
+    """Builds the initial ViewStack. If `initial_outcome` (a SingleMatch or
+    MultipleMatches from a --search quick-start) is given, the stack opens
+    directly on that result instead of the search selection dialog — the
+    same view-building logic an interactive search would use."""
+    if initial_outcome is not None:
+        initial_view = _outcome_view(initial_outcome, conn, config, breadcrumb, history)
+    else:
+        initial_view = SearchSelectionDialog(
             config.searchable_pairs(),
             conn=conn,
             config=config,
             breadcrumb=breadcrumb,
             history=history,
         )
-    )
+    return ViewStack(initial_view)
 
 
 def consumes_navigation_keys(view) -> bool:
@@ -66,7 +77,7 @@ def render_frame(
         pending_modal.render(stdscr)
 
 
-def run(stdscr, config: Config, conn) -> None:
+def run(stdscr, config: Config, conn, initial_outcome=None) -> None:
     """Curses main loop: builds the ViewStack, pushes the search selection
     dialog first (NFR1), then dispatches one key at a time. `s` and
     Left/Right are intercepted here, before the current view sees them, so
@@ -90,7 +101,13 @@ def run(stdscr, config: Config, conn) -> None:
     with no other side effects."""
     breadcrumb = Breadcrumb()
     history = History()
-    stack = build_view_stack(config, conn=conn, breadcrumb=breadcrumb, history=history)
+    stack = build_view_stack(
+        config,
+        conn=conn,
+        breadcrumb=breadcrumb,
+        history=history,
+        initial_outcome=initial_outcome,
+    )
     pending_modal: "ErrorNotice | QuitConfirmation | None" = None
     render_frame(stdscr, stack, pending_modal)
 

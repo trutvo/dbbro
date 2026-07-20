@@ -4,7 +4,9 @@ from dbbro import cli
 def test_ui_never_shown_when_config_invalid(tmp_path, monkeypatch, capsys):
     missing_path = tmp_path / "missing.yaml"
     called = []
-    monkeypatch.setattr(cli, "run_ui", lambda config, conn: called.append(config))
+    monkeypatch.setattr(
+        cli, "run_ui", lambda config, conn, initial_outcome=None: called.append(config)
+    )
 
     exit_code = cli.main(["--config", str(missing_path)])
 
@@ -30,7 +32,11 @@ database:
 """
     )
     called = []
-    monkeypatch.setattr(cli, "run_ui", lambda config, conn: called.append((config, conn)))
+    monkeypatch.setattr(
+        cli,
+        "run_ui",
+        lambda config, conn, initial_outcome=None: called.append((config, conn)),
+    )
     monkeypatch.setattr(cli, "connect", lambda db_config: "fake-connection")
 
     exit_code = cli.main(["--config", str(config_path)])
