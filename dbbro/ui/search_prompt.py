@@ -2,6 +2,8 @@ from . import keys
 from .screen import draw_modal
 from .view_stack import Transition
 
+FIELD_WIDTH = 128
+
 
 class SearchValuePrompt:
     def __init__(
@@ -23,7 +25,11 @@ class SearchValuePrompt:
         self.cursor = 0
 
     def render(self, screen) -> None:
-        draw_modal(screen, [f"{self.table}.{self.column}: {self.buffer}"])
+        line = f"{self.table}.{self.column}: {self.buffer}"
+        # Always exactly FIELD_WIDTH chars: padded with blank space when
+        # shorter, truncated (display only, buffer unaffected) when longer.
+        line = line[:FIELD_WIDTH].ljust(FIELD_WIDTH)
+        draw_modal(screen, [line])
 
     def consumes_navigation_keys(self) -> bool:
         """Always True: this view owns Left/Right as cursor movement within

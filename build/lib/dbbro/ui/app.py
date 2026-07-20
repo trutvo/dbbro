@@ -5,7 +5,7 @@ from ..history.history import History
 from ..navigation.breadcrumb import Breadcrumb
 from . import keys
 from .errors import OperationFailedError
-from .modals import ErrorNotice
+from .modals import ErrorNotice, QuitConfirmation
 from .search_dialog import SearchSelectionDialog
 from .view_stack import ViewStack
 
@@ -53,7 +53,9 @@ def dispatch_key(stack: ViewStack, key: int) -> ErrorNotice | None:
     return None
 
 
-def render_frame(stdscr, stack: ViewStack, pending_modal: ErrorNotice | None) -> None:
+def render_frame(
+    stdscr, stack: ViewStack, pending_modal: "ErrorNotice | QuitConfirmation | None"
+) -> None:
     """Erases the screen once, then renders the current view (and the
     pending modal, if any) on top — the single mechanism that guarantees
     no screen ever shows stale content from a previously active view
@@ -81,20 +83,32 @@ def run(stdscr, config: Config, conn) -> None:
     dismissing it (Return only) never creates a history entry (FR13/AC8).
     A terminal resize (KEY_RESIZE) just triggers curses.update_lines_cols()
     and a re-render — every draw call reads the terminal's current size
-    fresh, so nothing else needs to change (FR14/NFR3)."""
+    fresh, so nothing else needs to change (FR14/NFR3). `q` (also gated the
+    same way as `s`/Left/Right) opens a QuitConfirmation modal; Return
+    there quits dbbro (returning from this function lets curses.wrapper
+    restore the terminal), Escape cancels back to the exact prior state
+    with no other side effects."""
     breadcrumb = Breadcrumb()
     history = History()
     stack = build_view_stack(config, conn=conn, breadcrumb=breadcrumb, history=history)
-    pending_modal: ErrorNotice | None = None
+    pending_modal: "ErrorNotice | QuitConfirmation | None" = None
     render_frame(stdscr, stack, pending_modal)
 
     while True:
         key = stdscr.getch()
         if key == curses.KEY_RESIZE:
             curses.update_lines_cols()
+        elif isinstance(pending_modal, QuitConfirmation):
+            result = pending_modal.handle_key(key)
+            if result == "confirm":
+                return
+            if result == "cancel":
+                pending_modal = None
         elif pending_modal is not None:
             if pending_modal.handle_key(key):
                 pending_modal = None
+        elif key == keys.Q and not consumes_navigation_keys(stack.current):
+            pending_modal = QuitConfirmation()
         elif key == keys.S and not consumes_navigation_keys(stack.current):
             stack.reset_to(
                 SearchSelectionDialog(

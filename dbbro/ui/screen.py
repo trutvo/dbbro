@@ -67,7 +67,11 @@ def draw_panel(
     truncating any value that doesn't fit and reverse-videoing the row at
     `highlighted_index`."""
     max_height, max_width = screen.getmaxyx()
-    name_width = max((len(name) for name, _ in rows), default=0)
+    # The name column must fit the header text too, not just column names,
+    # so a table name longer than every column name is never truncated
+    # just because the divider now splits the header row (see draw_panel's
+    # header-row construction below).
+    name_width = max(len(header), max((len(name) for name, _ in rows), default=0))
     value_width = max((len(value) for _, value in rows), default=0)
 
     # Full border width = name_width + value_width + 7 (2 corners + 2 border
@@ -82,11 +86,15 @@ def draw_panel(
         if excess > 0:
             name_width = max(0, name_width - excess)
     value_width = max(1, value_width)
-    inner_width = name_width + value_width + 5  # content width between the outer '│'s
 
     c = PANEL_CHARS
     _write_line(screen, 0, 0, c["tl"] + c["h"] * (name_width + 2) + c["t_down"] + c["h"] * (value_width + 2) + c["tr"])
-    _write_line(screen, 1, 0, c["v"] + truncate(header, inner_width).ljust(inner_width) + c["v"])
+    header_text = truncate(header, name_width).ljust(name_width)
+    empty_cell = " " * value_width
+    _write_line(
+        screen, 1, 0,
+        f"{c['v']} {header_text} {c['v']} {empty_cell} {c['v']}",
+    )
     _write_line(screen, 2, 0, c["t_right"] + c["h"] * (name_width + 2) + c["cross"] + c["h"] * (value_width + 2) + c["t_left"])
 
     visible_height = max(1, max_height - 4)
@@ -99,7 +107,12 @@ def draw_panel(
             break
         name_text = truncate(name, name_width).ljust(name_width)
         value_text = truncate(value, value_width).rjust(value_width)
-        _write_line(screen, row_y, 0, f"{c['v']}{name_text} {c['v']} {value_text}{c['v']}", attr)
+        # 1 padding space on each side of both columns, matching the border's
+        # h*(width+2) segments exactly, so every row's right edge lines up.
+        _write_line(
+            screen, row_y, 0,
+            f"{c['v']} {name_text} {c['v']} {value_text} {c['v']}", attr,
+        )
 
     last_row = min(3 + len(visible_rows), max_height - 1)
     _write_line(screen, last_row, 0, c["bl"] + c["h"] * (name_width + 2) + c["t_up"] + c["h"] * (value_width + 2) + c["br"])
