@@ -16,7 +16,7 @@ defined in a config file. Example shape (YAML):
 ```yaml
 tables:
   Company:
-    columns: [id, name, customerNumber, creationDate, uuid, member_id]
+    columns: [id, name, customerNumber, creationDate, uuid]
     search_columns: [customerNumber, uuid]
     primary_key: id
   Membership:
@@ -87,8 +87,26 @@ The search dialog can be opened at anytime by hitting the `s` key.
 ┌───────────────┬──────────────────────────────────┐
 │Company        │                                  │
 ├───────────────┼──────────────────────────────────┤
+│id             │               Membership[879874] │
 │customerNumber │                           999998 │
-│member_id      │               Membership[879874] │
+│name           │                      Foo Company │
+│uuid           │ 000110475385e3a9755c548ef0491bd7 │
+│creationDate   │              2025-11-05 00:39:34 │
+└───────────────┴──────────────────────────────────┘
+```
+
+The `id` is special because it is a relation to the table Membership. This value has a special format
+`<table name>[FK id]`. The user can select such a relation entry by moving the Up and Down key.
+By hitting Return the table Membership will be displayed the same way.
+
+Table Membership
+```
+┌───────────────┬──────────────────────────────────┐
+│Membership     │                                  │
+├───────────────┼──────────────────────────────────┤
+│id             │                           123456 │
+│customerNumber │                           999998 │
+│member_id      │                  Company[879874] │
 │name           │                      Foo Company │
 │uuid           │ 000110475385e3a9755c548ef0491bd7 │
 │creationDate   │              2025-11-05 00:39:34 │
@@ -96,9 +114,8 @@ The search dialog can be opened at anytime by hitting the `s` key.
 
 ```
 
-The `member_id` is special because it is a relation to the table Membership. This value has a special format
+The `member_id` is the relation to the table Company. This value has a special format
 `<table name>[FK id]`. The user can select such a relation entry by moving the Up and Down key.
-By hitting Return the table Membership will be displayed the same way.
 
 *History navigation*: Like a web browser, dbbro has a back and forth navigation by using the Left and Right keys. 
 Only the Table views are part of the History.
