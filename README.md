@@ -67,7 +67,7 @@ tables:
         label: "belongs to company"
 
 database:
-  host: db.example.com
+  host: db.example.com  # or omit and use DBBRO_DB_HOST instead (see below)
   name: mydb
   user: dbbro_operator
   # password: set here, or omit and use DBBRO_DB_PWD instead (see below)
@@ -89,7 +89,10 @@ a declared column, or a relation naming a table/column that doesn't
 exist — before any UI is shown.
 
 Database section (`database`, required):
-- `host`, `name`, `user` — required.
+- `host` — optional in the file. If omitted, dbbro reads it instead from
+  the `DBBRO_DB_HOST` environment variable; an empty/unset environment
+  variable with no file host is a configuration error.
+- `name`, `user` — required.
 - `port` — optional; defaults to MySQL's standard `3306` if omitted.
 - `password` — optional in the file. If omitted, dbbro reads it instead
   from the `DBBRO_DB_PWD` environment variable; an empty/unset environment
@@ -97,7 +100,8 @@ Database section (`database`, required):
   password.
 
 ```bash
-export DBBRO_DB_PWD='s3cret'   # only needed if `password` is not in the file
+export DBBRO_DB_HOST='db.example.com'  # only needed if `host` is not in the file
+export DBBRO_DB_PWD='s3cret'           # only needed if `password` is not in the file
 ```
 
 If the `database` section is missing entirely, missing a required value,
@@ -156,6 +160,8 @@ declared relations.
 - A MySQL connection opened with `pymysql.connect`
   (`dbbro/db/connection.py`), queried through parameterized `SELECT`s
   (`dbbro/db/queries.py`).
+- The `DBBRO_DB_HOST` environment variable, as a fallback source for the
+  database host.
 - The `DBBRO_DB_PWD` environment variable, as a fallback source for the
   database password.
 
@@ -163,6 +169,7 @@ declared relations.
 graph LR
     Operator -->|keyboard, curses TUI| dbbro
     dbbro -->|reads| ConfigYAML[YAML config file]
+    dbbro -->|reads, fallback| EnvVarHost[DBBRO_DB_HOST env var]
     dbbro -->|reads, fallback| EnvVar[DBBRO_DB_PWD env var]
     dbbro -->|PyMySQL| Database[(MySQL database)]
 ```
