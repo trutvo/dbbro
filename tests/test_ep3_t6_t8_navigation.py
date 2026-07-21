@@ -6,8 +6,6 @@ import pytest
 from dbbro.config.models import Config, Relation, Table
 from dbbro.navigation.breadcrumb import Breadcrumb
 from dbbro.ui import keys
-from dbbro.ui.errors import RelationLookupFailedError
-from dbbro.ui.selection_list import SelectionList
 from dbbro.ui.table_view import TableView
 
 
@@ -81,14 +79,13 @@ def test_return_on_relation_field_with_one_match_extends_breadcrumb(nav_conn, na
     assert stops[-1].primary_key_value == "42"
 
 
-def test_return_on_relation_field_with_zero_matches_raises_relation_lookup_failed(
+def test_return_on_relation_field_with_zero_matches_does_nothing(
     nav_conn, nav_config
 ):
     view = _employee_view(nav_conn, nav_config)
     view.selected = 2
 
-    with pytest.raises(RelationLookupFailedError):
-        view.handle_key(keys.RETURN)
+    assert view.handle_key(keys.RETURN) is None
 
 
 def test_return_on_non_relation_field_does_nothing(nav_conn, nav_config):
@@ -100,30 +97,27 @@ def test_return_on_non_relation_field_does_nothing(nav_conn, nav_config):
     assert transition is None
 
 
-def test_return_on_relation_field_with_multiple_matches_opens_selection_list(
+def test_enter_on_local_column_with_multiple_matches_does_not_open_selection_list(
     nav_conn, nav_config
 ):
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme One')")
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme Two')")
     view = _employee_view(nav_conn, nav_config)
-    view.selected = 2
+    view.selected = 2  # company_id, the local column row
 
-    transition = view.handle_key(keys.RETURN)
-
-    assert isinstance(transition.view, SelectionList)
-    assert len(transition.view.records) == 2
+    assert view.handle_key(keys.RETURN) is None
 
 
-def test_choosing_from_selection_list_displays_new_table_view_per_t6(nav_conn, nav_config):
+def test_enter_on_a_specific_related_entity_row_opens_it_directly(nav_conn, nav_config):
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme One')")
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme Two')")
     view = _employee_view(nav_conn, nav_config)
-    view.selected = 2
-    selection_list = view.handle_key(keys.RETURN).view
+    view.selected = 3  # first related-entity row beneath company_id
 
-    transition = selection_list.handle_key(keys.RETURN)
+    transition = view.handle_key(keys.RETURN)
 
     new_view = transition.view
     assert isinstance(new_view, TableView)
     assert new_view.table.name == "Company"
+    assert new_view.record == {"id": "42", "name": "Acme One"}
     assert new_view.selected == 0

@@ -1,4 +1,7 @@
-from dbbro.config.models import Relation, Table
+import sqlite3
+from types import MappingProxyType
+
+from dbbro.config.models import Config, Relation, Table
 from dbbro.ui.modals import ErrorNotice, QuitConfirmation
 from dbbro.ui.search_dialog import SearchSelectionDialog
 from dbbro.ui.search_prompt import SearchValuePrompt
@@ -31,7 +34,13 @@ def test_table_view_includes_open_when_relation_field_selected():
         primary_key="id",
         relations=(Relation(target_table="Shop", local_column="shop_id", foreign_column="id", label="Shop"),),
     )
-    view = TableView(table, {"id": 1, "shop_id": 5}, conn=None, config=None, breadcrumb=None)
+    shop = Table(name="Shop", columns=("id",), primary_key="id")
+    config = Config(tables=MappingProxyType({"Company": table, "Shop": shop}))
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE Shop (id TEXT)")
+    conn.execute("INSERT INTO Shop VALUES ('5')")
+    conn.commit()
+    view = TableView(table, {"id": 1, "shop_id": 5}, conn=conn, config=config, breadcrumb=None)
     view.selected = 1  # the shop_id / RelationField
 
     labels = _labels(view.help_keys())
