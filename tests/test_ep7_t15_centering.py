@@ -32,7 +32,9 @@ def test_draw_panel_is_centered_horizontally_and_vertically():
     box_width = max_x - min_x
     box_height = max_y - min_y + 1
     assert min_x == (100 - box_width) // 2
-    assert min_y == (40 - box_height) // 2
+    # The bottom row is reserved for the EP-2 help bar (N3/AC7), so
+    # centering is computed against height - 1, not the raw terminal height.
+    assert min_y == (39 - box_height) // 2
 
 
 def test_oversized_box_clamps_horizontally_instead_of_negative_position():

@@ -6,6 +6,7 @@ from ..navigation.breadcrumb import Breadcrumb, BreadcrumbStop
 from . import keys
 from .errors import RelationLookupFailedError
 from .fields import RelationField, build_fields
+from .help_bar import MOVE_KEY, HelpKey
 from .screen import draw_panel
 from .selection_list import SelectionList
 from .view_stack import Transition
@@ -49,6 +50,15 @@ class TableView:
             highlighted_index=self.selected,
             scroll_offset=self.scroll_offset,
         )
+
+    def help_keys(self) -> list[HelpKey]:
+        """↑/↓ move is always available; "enter open" only appears when the
+        selected field is a RelationField (F4/AC6 — otherwise pressing enter
+        does nothing)."""
+        result = [MOVE_KEY]
+        if isinstance(self.fields[self.selected], RelationField):
+            result.append(HelpKey("enter", "open", priority=1))
+        return result
 
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.DOWN:

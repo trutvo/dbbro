@@ -40,6 +40,14 @@ class History:
         self._position += 1
         return self._entries[self._position]
 
+    def can_go_back(self) -> bool:
+        """True if go_back() would move to an earlier entry."""
+        return self._position > 0
+
+    def can_go_forward(self) -> bool:
+        """True if go_forward() would move to a later entry."""
+        return self._position < len(self._entries) - 1
+
     def current(self) -> HistoryEntry | None:
         """The entry at the current position, or None if empty (FR9/AC11)."""
         if self._position < 0:

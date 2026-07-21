@@ -5,8 +5,9 @@ from ..history.history import History
 from ..navigation.breadcrumb import Breadcrumb
 from . import keys
 from .errors import OperationFailedError
+from .help_bar import HelpKey
 from .modals import ErrorNotice, QuitConfirmation
-from .screen import draw_breadcrumb_bar
+from .screen import draw_breadcrumb_bar, draw_help_bar
 from .search_dialog import SearchSelectionDialog
 from .search_prompt import _outcome_view
 from .view_stack import ViewStack
@@ -40,6 +41,35 @@ def consumes_navigation_keys(view) -> bool:
     """True if `view` itself handles LEFT/RIGHT (e.g. cursor movement in a
     typed buffer). Views that don't define this default to False."""
     return getattr(view, "consumes_navigation_keys", lambda: False)()
+
+
+def get_help_keys(view) -> list[HelpKey]:
+    """The HelpKey entries `view` currently exposes. Mirrors
+    consumes_navigation_keys()'s getattr(..., default) shape: views that
+    don't define help_keys() contribute no entries."""
+    return getattr(view, "help_keys", lambda: [])()
+
+
+def global_help_keys(view, history: History | None) -> list[HelpKey]:
+    """The navigation keys the main loop intercepts globally (`q`, `s`,
+    history back/forward), mirroring the exact conditions run()'s main loop
+    uses to intercept them (§8 risk: keeping the two in sync by calling the
+    same consumes_navigation_keys() helper rather than re-deriving the
+    condition independently). Contributes nothing for `q`/`s` while `view`
+    itself consumes navigation keys, and nothing for back/forward unless
+    `history` says the corresponding move is currently possible."""
+    if consumes_navigation_keys(view):
+        return []
+    result = [
+        HelpKey("q", "quit", priority=3),
+        HelpKey("s", "search", priority=2),
+    ]
+    if history is not None:
+        if history.can_go_back():
+            result.append(HelpKey("←", "back", priority=1))
+        if history.can_go_forward():
+            result.append(HelpKey("→", "forward", priority=1))
+    return result
 
 
 def handle_navigation_keys(
@@ -77,18 +107,27 @@ def render_frame(
     stdscr,
     stack: ViewStack,
     pending_modal: "ErrorNotice | QuitConfirmation | None",
-    breadcrumb: Breadcrumb,
+    breadcrumb: Breadcrumb | None = None,
+    history: History | None = None,
 ) -> None:
     """Erases the screen once, draws the breadcrumb bar, then renders the
-    current view (and the pending modal, if any) on top — the single
-    mechanism that guarantees no screen ever shows stale content from a
-    previously active view (FR13/AC13), and that the breadcrumb is always
-    visible and never overwritten (F1/F7/AC1/AC10)."""
+    current view (and the pending modal, if any) on top, then draws the
+    navigation help bar last so it always wins the terminal's bottom row
+    (F1/F3/F6/N3/N4/AC1/AC3/AC7/AC8/AC9) — the single mechanism that
+    guarantees no screen ever shows stale content from a previously active
+    view (FR13/AC13), and that the breadcrumb is always visible and never
+    overwritten (F1/F7/AC1/AC10). The help bar reflects the pending modal's
+    keys while one is shown, not the view underneath it, since the modal
+    is what the user can actually act on."""
     stdscr.erase()
-    draw_breadcrumb_bar(stdscr, breadcrumb.as_list())
+    if breadcrumb is not None:
+        draw_breadcrumb_bar(stdscr, breadcrumb.as_list())
     stack.current.render(stdscr)
     if pending_modal is not None:
         pending_modal.render(stdscr)
+    active = pending_modal if pending_modal is not None else stack.current
+    help_keys = get_help_keys(active) + global_help_keys(stack.current, history)
+    draw_help_bar(stdscr, help_keys)
 
 
 def run(stdscr, config: Config, conn, initial_outcome=None) -> None:
@@ -123,7 +162,7 @@ def run(stdscr, config: Config, conn, initial_outcome=None) -> None:
         initial_outcome=initial_outcome,
     )
     pending_modal: "ErrorNotice | QuitConfirmation | None" = None
-    render_frame(stdscr, stack, pending_modal, breadcrumb)
+    render_frame(stdscr, stack, pending_modal, breadcrumb, history)
 
     while True:
         key = stdscr.getch()
@@ -156,4 +195,4 @@ def run(stdscr, config: Config, conn, initial_outcome=None) -> None:
             handle_navigation_keys(key, stack, history, breadcrumb)
         else:
             pending_modal = dispatch_key(stack, key)
-        render_frame(stdscr, stack, pending_modal, breadcrumb)
+        render_frame(stdscr, stack, pending_modal, breadcrumb, history)

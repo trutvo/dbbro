@@ -54,12 +54,15 @@ def test_draw_panel_truncates_values_wider_than_terminal_width():
 
 
 def test_draw_panel_shows_only_rows_within_scroll_window():
-    screen = StubScreen(height=8, width=80)  # visible_height = max(1, 8-4-2) = 2
+    # visible_height = max(1, (8-1)-4-2) = 1: the bottom row is reserved for
+    # the EP-2 help bar (N3/AC7), so one row less is usable than before.
+    screen = StubScreen(height=8, width=80)
     rows = [("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]
 
     draw_panel(screen, "T", rows, highlighted_index=2, scroll_offset=2)
 
     text = screen.all_text()
-    assert "c" in text and "d" in text
+    assert "c" in text
     assert "a" not in text
     assert "b" not in text
+    assert "d" not in text

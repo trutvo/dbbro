@@ -1,6 +1,7 @@
 from typing import Any, Callable
 
 from . import keys
+from .help_bar import BACK_KEY, MOVE_KEY, HelpKey
 from .screen import draw_modal, update_scroll
 from .view_stack import Transition
 
@@ -40,6 +41,9 @@ class SelectionList:
         self.scroll_offset = update_scroll(
             self.highlighted, self.scroll_offset, self.visible_height
         )
+
+    def help_keys(self) -> list[HelpKey]:
+        return [MOVE_KEY, HelpKey("enter", "select", priority=1), BACK_KEY]
 
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.DOWN:

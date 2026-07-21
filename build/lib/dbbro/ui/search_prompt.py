@@ -1,4 +1,5 @@
 from . import keys
+from .help_bar import BACK_KEY, HelpKey
 from .screen import draw_modal
 from .view_stack import Transition
 
@@ -36,6 +37,9 @@ class SearchValuePrompt:
         its typed buffer, so the main loop must not treat them as history
         navigation while this view is on top (FR14/AC13)."""
         return True
+
+    def help_keys(self) -> list[HelpKey]:
+        return [HelpKey("enter", "search", priority=1), BACK_KEY]
 
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.ESCAPE:

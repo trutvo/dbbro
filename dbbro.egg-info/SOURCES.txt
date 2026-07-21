@@ -32,6 +32,7 @@ dbbro/ui/app.py
 dbbro/ui/breadcrumb_bar.py
 dbbro/ui/errors.py
 dbbro/ui/fields.py
+dbbro/ui/help_bar.py
 dbbro/ui/keys.py
 dbbro/ui/modals.py
 dbbro/ui/screen.py
@@ -45,10 +46,15 @@ tests/test_ep1b_t1_render_breadcrumb_line.py
 tests/test_ep1b_t2_draw_breadcrumb_bar.py
 tests/test_ep1b_t3_render_frame_breadcrumb.py
 tests/test_ep1b_t4_breadcrumb_on_history_navigation.py
+tests/test_ep2_t1_render_help_line.py
 tests/test_ep2_t1_searchable_pairs.py
+tests/test_ep2_t2_draw_help_bar.py
 tests/test_ep2_t2_selection_dialog_navigation.py
 tests/test_ep2_t3_value_prompt.py
+tests/test_ep2_t3_view_help_keys.py
+tests/test_ep2_t4_history_can_navigate.py
 tests/test_ep2_t4_lookup.py
+tests/test_ep2_t5_render_frame_help_bar.py
 tests/test_ep2_t5_reopen_via_s.py
 tests/test_ep2_t6_match_list.py
 tests/test_ep3_search_to_table_view_integration.py

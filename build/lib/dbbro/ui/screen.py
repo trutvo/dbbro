@@ -1,6 +1,7 @@
 import curses
 
 from .breadcrumb_bar import render_breadcrumb_line
+from .help_bar import HelpKey, render_help_line
 
 TOP_RESERVED_ROWS = 2
 
@@ -37,6 +38,14 @@ def _write_line(screen, y: int, x: int, text: str, attr: int = 0) -> None:
     screen.addstr(y, x, text, attr)
 
 
+def _usable_height(screen) -> int:
+    """The terminal's height minus the bottom row, which is always
+    reserved for the help bar (N3/AC7), so draw_panel/draw_modal never
+    write into it."""
+    max_height, _ = screen.getmaxyx()
+    return max_height - 1
+
+
 def _center_origin(box_width: int, box_height: int, max_width: int, max_height: int) -> tuple[int, int]:
     """Returns (start_y, start_x) so a box_width x box_height box is centered
     in the terminal, clamped to (TOP_RESERVED_ROWS, 0) if it wouldn't
@@ -60,6 +69,7 @@ def draw_modal(screen, lines: list[str], highlighted_index: int | None = None) -
     line (truncated to the terminal's current width), centered in the
     terminal, reverse-videoing the line at `highlighted_index` if given."""
     max_height, max_width = screen.getmaxyx()
+    max_height = _usable_height(screen)
     inner_width = max(1, min((max((len(line) for line in lines), default=0)), max_width - 4))
     box_width = inner_width + 4
     box_height = len(lines) + 2
@@ -74,7 +84,7 @@ def draw_modal(screen, lines: list[str], highlighted_index: int | None = None) -
         if row >= max_height - 1:
             break
         _write_line(screen, row, start_x, c["v"] + " " + content.ljust(inner_width) + " " + c["v"], attr)
-    last_row = min(start_y + box_height - 1, max_height - 1)
+    last_row = max(start_y, min(start_y + box_height - 1, max_height - 1))
     _write_line(screen, last_row, start_x, c["bl"] + c["h"] * (box_width - 2) + c["br"])
 
 
@@ -90,6 +100,7 @@ def draw_panel(
     truncating any value that doesn't fit and reverse-videoing the row at
     `highlighted_index`."""
     max_height, max_width = screen.getmaxyx()
+    max_height = _usable_height(screen)
     # The name column must fit the header text too, not just column names,
     # so a table name longer than every column name is never truncated
     # just because the divider now splits the header row (see draw_panel's
@@ -141,5 +152,15 @@ def draw_panel(
             f"{c['v']} {name_text} {c['v']} {value_text} {c['v']}", attr,
         )
 
-    last_row = min(start_y + box_height - 1, max_height - 1)
+    last_row = max(start_y, min(start_y + box_height - 1, max_height - 1))
     _write_line(screen, last_row, start_x, c["bl"] + c["h"] * (name_width + 2) + c["t_up"] + c["h"] * (value_width + 2) + c["br"])
+
+
+def draw_help_bar(screen, keys: list[HelpKey]) -> None:
+    """Draws the one-line navigation help summary at the terminal's last
+    row (N3/AC7), fitted to the terminal's current width, dropping
+    lowest-priority keys first if the full list would otherwise overflow
+    (F5/AC5)."""
+    max_height, max_width = screen.getmaxyx()
+    line = render_help_line(keys, max_width)
+    _write_line(screen, max_height - 1, 0, line)

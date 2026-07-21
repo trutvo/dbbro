@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from . import keys
+from .help_bar import HelpKey
 from .screen import draw_modal
 
 
@@ -10,6 +11,9 @@ class ErrorNotice:
 
     def render(self, screen) -> None:
         draw_modal(screen, [self.message])
+
+    def help_keys(self) -> list[HelpKey]:
+        return [HelpKey("enter", "dismiss", priority=1)]
 
     def handle_key(self, key: int) -> bool:
         """Return True (dismissed) only when key is Return; otherwise ignore."""
@@ -25,6 +29,9 @@ class QuitConfirmation:
 
     def render(self, screen) -> None:
         draw_modal(screen, [self.message])
+
+    def help_keys(self) -> list[HelpKey]:
+        return [HelpKey("enter", "quit", priority=1), HelpKey("esc", "cancel", priority=2)]
 
     def handle_key(self, key: int) -> str | None:
         """Returns 'confirm', 'cancel', or None (still open, key ignored)."""
