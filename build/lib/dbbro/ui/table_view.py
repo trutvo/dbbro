@@ -1,14 +1,12 @@
 from typing import Any
 
 from ..config.models import Config, Table
-from ..db.queries import fetch_by_column_equals
 from ..navigation.breadcrumb import Breadcrumb, BreadcrumbStop
 from . import keys
-from .errors import RelationLookupFailedError
-from .fields import RelationField, build_fields
+from .fields import build_fields
 from .help_bar import MOVE_KEY, HelpKey
+from .relation_rows import LocalColumnTarget, RelatedEntityTarget, RowTarget, build_display_rows
 from .screen import draw_panel
-from .selection_list import SelectionList
 from .view_stack import Transition
 
 DEFAULT_VISIBLE_HEIGHT = 20
@@ -38,39 +36,49 @@ class TableView:
         # table/record (going back would otherwise lose earlier hops).
         self.breadcrumb_snapshot = tuple(breadcrumb.as_list()) if breadcrumb is not None else ()
         self.fields = build_fields(table, record)
+        self.rows, self.row_targets = build_display_rows(
+            self.fields, table, config, conn
+        )
         self.selected = 0
         self.scroll_offset = 0
 
     def render(self, screen) -> None:
-        rows = [(field.column, field.value) for field in self.fields]
         draw_panel(
             screen,
             self.table.name,
-            rows,
+            self.rows,
             highlighted_index=self.selected,
             scroll_offset=self.scroll_offset,
         )
 
     def help_keys(self) -> list[HelpKey]:
-        """↑/↓ move is always available; "enter open" only appears when the
-        selected field is a RelationField (F4/AC6 — otherwise pressing enter
-        does nothing)."""
+        """↑/↓ move is always available; "enter open" only appears when
+        pressing Enter on the highlighted row would actually open something
+        (N2/AC6/AC7)."""
         result = [MOVE_KEY]
-        if isinstance(self.fields[self.selected], RelationField):
+        if self._is_openable(self.row_targets[self.selected]):
             result.append(HelpKey("enter", "open", priority=1))
         return result
 
+    @staticmethod
+    def _is_openable(target: RowTarget) -> bool:
+        if isinstance(target, RelatedEntityTarget):
+            return True
+        if isinstance(target, LocalColumnTarget):
+            return len(target.matches) == 1
+        return False
+
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.DOWN:
-            self.selected = (self.selected + 1) % len(self.fields)
+            self.selected = (self.selected + 1) % len(self.rows)
             self._update_scroll()
             return None
         if key == keys.UP:
-            self.selected = (self.selected - 1) % len(self.fields)
+            self.selected = (self.selected - 1) % len(self.rows)
             self._update_scroll()
             return None
         if key in keys.RETURN_ALTERNATES:
-            return self._follow_selected_field()
+            return self._open_selected_row()
         return None
 
     def _update_scroll(self) -> None:
@@ -79,28 +87,15 @@ class TableView:
         elif self.selected >= self.scroll_offset + self.visible_height:
             self.scroll_offset = self.selected - self.visible_height + 1
 
-    def _follow_selected_field(self) -> Transition | None:
-        field = self.fields[self.selected]
-        if not isinstance(field, RelationField):
-            return None
-
-        target_table = self.config.tables[field.related_table]
-        relation = next(
-            r for r in self.table.relations if r.local_column == field.column
-        )
-        matches = fetch_by_column_equals(
-            self.conn, target_table, relation.foreign_column, field.foreign_key_value
-        )
-
-        if not matches:
-            raise RelationLookupFailedError()
-        if len(matches) == 1:
-            return Transition.push(self._build_table_view(target_table, matches[0]))
-        return Transition.push(
-            SelectionList(
-                matches, lambda record: self._build_table_view(target_table, record)
-            )
-        )
+    def _open_selected_row(self) -> Transition | None:
+        target = self.row_targets[self.selected]
+        if isinstance(target, RelatedEntityTarget):
+            table = self.config.tables[target.target_table]
+            return Transition.push(self._build_table_view(table, target.record))
+        if isinstance(target, LocalColumnTarget) and len(target.matches) == 1:
+            table = self.config.tables[target.target_table]
+            return Transition.push(self._build_table_view(table, target.matches[0]))
+        return None
 
     def _build_table_view(self, table: Table, record: dict[str, Any]) -> "TableView":
         self.breadcrumb.push(
