@@ -29,6 +29,7 @@ dbbro/search/lookup.py
 dbbro/search/models.py
 dbbro/ui/__init__.py
 dbbro/ui/app.py
+dbbro/ui/breadcrumb_bar.py
 dbbro/ui/errors.py
 dbbro/ui/fields.py
 dbbro/ui/keys.py
@@ -40,6 +41,10 @@ dbbro/ui/selection_list.py
 dbbro/ui/table_view.py
 dbbro/ui/view_stack.py
 tests/test_cli_startup_ordering.py
+tests/test_ep1b_t1_render_breadcrumb_line.py
+tests/test_ep1b_t2_draw_breadcrumb_bar.py
+tests/test_ep1b_t3_render_frame_breadcrumb.py
+tests/test_ep1b_t4_breadcrumb_on_history_navigation.py
 tests/test_ep2_t1_searchable_pairs.py
 tests/test_ep2_t2_selection_dialog_navigation.py
 tests/test_ep2_t3_value_prompt.py

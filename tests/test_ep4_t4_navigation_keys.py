@@ -1,4 +1,5 @@
 from dbbro.history.history import History
+from dbbro.navigation.breadcrumb import Breadcrumb
 from dbbro.ui import keys
 from dbbro.ui.app import consumes_navigation_keys, handle_navigation_keys
 from dbbro.ui.search_prompt import SearchValuePrompt
@@ -24,7 +25,7 @@ def test_left_right_navigate_history_when_current_view_does_not_consume_navigati
     stack = ViewStack(view_b)
 
     assert not consumes_navigation_keys(stack.current)
-    handle_navigation_keys(keys.LEFT, stack, history)
+    handle_navigation_keys(keys.LEFT, stack, history, Breadcrumb())
 
     assert stack.current is view_a
 
@@ -57,5 +58,5 @@ def test_left_right_navigate_history_immediately_after_search_prompt_view_is_pop
     stack.pop()  # simulate Escape popping the prompt
 
     assert not consumes_navigation_keys(stack.current)
-    handle_navigation_keys(keys.LEFT, stack, history)
+    handle_navigation_keys(keys.LEFT, stack, history, Breadcrumb())
     assert stack.current is view_a

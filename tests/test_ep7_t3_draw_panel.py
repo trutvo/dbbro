@@ -54,7 +54,7 @@ def test_draw_panel_truncates_values_wider_than_terminal_width():
 
 
 def test_draw_panel_shows_only_rows_within_scroll_window():
-    screen = StubScreen(height=6, width=80)  # visible_height = max(1, 6-4) = 2
+    screen = StubScreen(height=8, width=80)  # visible_height = max(1, 8-4-2) = 2
     rows = [("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]
 
     draw_panel(screen, "T", rows, highlighted_index=2, scroll_offset=2)

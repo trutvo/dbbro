@@ -1,5 +1,9 @@
 import curses
 
+from .breadcrumb_bar import render_breadcrumb_line
+
+TOP_RESERVED_ROWS = 2
+
 PANEL_CHARS = {
     "tl": "┌", "tr": "┐", "bl": "└", "br": "┘",
     "h": "─", "v": "│", "cross": "┼", "t_down": "┬", "t_up": "┴",
@@ -35,10 +39,20 @@ def _write_line(screen, y: int, x: int, text: str, attr: int = 0) -> None:
 
 def _center_origin(box_width: int, box_height: int, max_width: int, max_height: int) -> tuple[int, int]:
     """Returns (start_y, start_x) so a box_width x box_height box is centered
-    in the terminal, clamped to (0, 0) if it wouldn't otherwise fit."""
-    start_y = max(0, (max_height - box_height) // 2)
+    in the terminal, clamped to (TOP_RESERVED_ROWS, 0) if it wouldn't
+    otherwise fit, so the top-reserved rows are never drawn over."""
+    start_y = max(TOP_RESERVED_ROWS, (max_height - box_height) // 2)
     start_x = max(0, (max_width - box_width) // 2)
     return start_y, start_x
+
+
+def draw_breadcrumb_bar(screen, stops: list) -> None:
+    """Draws the breadcrumb at row 0, fitted to the terminal's current
+    width. Row 1 is left blank (already erased per-frame), separating the
+    breadcrumb from the screen body."""
+    _, max_width = screen.getmaxyx()
+    line = render_breadcrumb_line(stops, max_width)
+    _write_line(screen, 0, 0, line)
 
 
 def draw_modal(screen, lines: list[str], highlighted_index: int | None = None) -> None:
@@ -97,7 +111,7 @@ def draw_panel(
     value_width = max(1, value_width)
     box_width = name_width + value_width + 7
 
-    visible_height = max(1, max_height - 4)
+    visible_height = max(1, max_height - 4 - TOP_RESERVED_ROWS)
     visible_rows = rows[scroll_offset : scroll_offset + visible_height]
     box_height = 3 + len(visible_rows) + 1
     start_y, start_x = _center_origin(box_width, box_height, max_width, max_height)

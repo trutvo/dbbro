@@ -31,6 +31,11 @@ class TableView:
         self.breadcrumb = breadcrumb
         self.history = history
         self.visible_height = visible_height
+        # Snapshot of the breadcrumb's full stop stack at the moment this
+        # view was reached, so navigating history back/forward to this view
+        # can restore the exact path it was shown with, not just its own
+        # table/record (going back would otherwise lose earlier hops).
+        self.breadcrumb_snapshot = tuple(breadcrumb.as_list()) if breadcrumb is not None else ()
         self.fields = build_fields(table, record)
         self.selected = 0
         self.scroll_offset = 0

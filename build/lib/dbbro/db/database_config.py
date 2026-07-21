@@ -25,7 +25,22 @@ def resolve_database_config(raw: dict, env: Mapping[str, str]) -> DatabaseConfig
             return None
         return value
 
-    host = _require_string("host")
+    file_host = db_section.get("host")
+    if file_host is not None and not isinstance(file_host, str):
+        issues.append("database.host: value must be a string")
+        file_host = None
+
+    host = file_host
+    if not host:
+        env_host = env.get("DBBRO_DB_HOST", "")
+        host = env_host if env_host else None
+
+    if host is None:
+        issues.append(
+            "database.host: no host available in the configuration "
+            "file or the DBBRO_DB_HOST environment variable"
+        )
+
     name = _require_string("name")
     user = _require_string("user")
 

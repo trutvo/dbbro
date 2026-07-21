@@ -1,3 +1,4 @@
+from dbbro.navigation.breadcrumb import Breadcrumb
 from dbbro.ui.app import render_frame
 from dbbro.ui.view_stack import ViewStack
 from tests.stub_screen import StubScreen
@@ -15,7 +16,7 @@ def test_main_loop_erases_screen_before_each_render():
     stack = ViewStack(_StubView())
     screen = StubScreen()
 
-    render_frame(screen, stack, pending_modal=None)
+    render_frame(screen, stack, pending_modal=None, breadcrumb=Breadcrumb())
 
     assert screen.calls[0] == "erase"
 
@@ -28,7 +29,7 @@ def test_render_frame_renders_pending_modal_after_current_view():
     stack = ViewStack(_StubView())
     screen = StubScreen()
 
-    render_frame(screen, stack, pending_modal=_StubModal())
+    render_frame(screen, stack, pending_modal=_StubModal(), breadcrumb=Breadcrumb())
 
     text = screen.all_text()
     assert "view content" in text

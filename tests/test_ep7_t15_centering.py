@@ -1,4 +1,4 @@
-from dbbro.ui.screen import draw_modal, draw_panel
+from dbbro.ui.screen import TOP_RESERVED_ROWS, draw_modal, draw_panel
 from tests.stub_screen import StubScreen
 
 
@@ -50,4 +50,6 @@ def test_oversized_box_clamps_vertically_instead_of_negative_position():
     draw_modal(screen, [f"line {i}" for i in range(20)])
 
     ys = [c[0] for c in screen.calls if isinstance(c, tuple)]
-    assert min(ys) == 0
+    # Clamped to TOP_RESERVED_ROWS (2), not 0, since the top two rows are
+    # now reserved for the breadcrumb bar and its separator.
+    assert min(ys) == TOP_RESERVED_ROWS

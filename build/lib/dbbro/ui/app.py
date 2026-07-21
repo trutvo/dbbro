@@ -6,6 +6,7 @@ from ..navigation.breadcrumb import Breadcrumb
 from . import keys
 from .errors import OperationFailedError
 from .modals import ErrorNotice, QuitConfirmation
+from .screen import draw_breadcrumb_bar
 from .search_dialog import SearchSelectionDialog
 from .search_prompt import _outcome_view
 from .view_stack import ViewStack
@@ -41,14 +42,22 @@ def consumes_navigation_keys(view) -> bool:
     return getattr(view, "consumes_navigation_keys", lambda: False)()
 
 
-def handle_navigation_keys(key: int, stack: ViewStack, history: History) -> None:
+def handle_navigation_keys(
+    key: int, stack: ViewStack, history: History, breadcrumb: Breadcrumb
+) -> None:
     """Only acts on LEFT/RIGHT when the current view does not itself claim
     them. Calls history.go_back()/go_forward() and, if a non-None entry
     comes back, redisplays that entry's already-built view without
-    repeating any search or relation lookup (NFR1)."""
+    repeating any search or relation lookup (NFR1), and restores the
+    breadcrumb to the exact stop stack the restored view was reached with
+    (its `breadcrumb_snapshot`), so navigating back/forward doesn't lose
+    the earlier hops that led to it."""
     entry = history.go_back() if key == keys.LEFT else history.go_forward()
-    if entry is not None:
-        stack.frames[-1] = entry.view
+    if entry is None:
+        return
+    stack.frames[-1] = entry.view
+    view = entry.view
+    breadcrumb.stops = list(getattr(view, "breadcrumb_snapshot", ()))
 
 
 def dispatch_key(stack: ViewStack, key: int) -> ErrorNotice | None:
@@ -65,13 +74,18 @@ def dispatch_key(stack: ViewStack, key: int) -> ErrorNotice | None:
 
 
 def render_frame(
-    stdscr, stack: ViewStack, pending_modal: "ErrorNotice | QuitConfirmation | None"
+    stdscr,
+    stack: ViewStack,
+    pending_modal: "ErrorNotice | QuitConfirmation | None",
+    breadcrumb: Breadcrumb,
 ) -> None:
-    """Erases the screen once, then renders the current view (and the
-    pending modal, if any) on top — the single mechanism that guarantees
-    no screen ever shows stale content from a previously active view
-    (FR13/AC13)."""
+    """Erases the screen once, draws the breadcrumb bar, then renders the
+    current view (and the pending modal, if any) on top — the single
+    mechanism that guarantees no screen ever shows stale content from a
+    previously active view (FR13/AC13), and that the breadcrumb is always
+    visible and never overwritten (F1/F7/AC1/AC10)."""
     stdscr.erase()
+    draw_breadcrumb_bar(stdscr, breadcrumb.as_list())
     stack.current.render(stdscr)
     if pending_modal is not None:
         pending_modal.render(stdscr)
@@ -109,7 +123,7 @@ def run(stdscr, config: Config, conn, initial_outcome=None) -> None:
         initial_outcome=initial_outcome,
     )
     pending_modal: "ErrorNotice | QuitConfirmation | None" = None
-    render_frame(stdscr, stack, pending_modal)
+    render_frame(stdscr, stack, pending_modal, breadcrumb)
 
     while True:
         key = stdscr.getch()
@@ -139,7 +153,7 @@ def run(stdscr, config: Config, conn, initial_outcome=None) -> None:
         elif key in (keys.LEFT, keys.RIGHT) and not consumes_navigation_keys(
             stack.current
         ):
-            handle_navigation_keys(key, stack, history)
+            handle_navigation_keys(key, stack, history, breadcrumb)
         else:
             pending_modal = dispatch_key(stack, key)
-        render_frame(stdscr, stack, pending_modal)
+        render_frame(stdscr, stack, pending_modal, breadcrumb)
