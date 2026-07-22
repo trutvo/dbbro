@@ -1,75 +1,89 @@
 ---
 name: code-review
-description: Reviews the current diff (staged, or unstaged if nothing is staged) for correctness, style, and maintainability issues, adapting to the project's programming language(s) and any local style guide config found in the repo (`.eslintrc*`, `.editorconfig`, `.prettierrc*`, `pyproject.toml`, `.rubocop.yml`, linters, etc). For every issue found, asks the user one at a time to (a) fix it, (b) ignore it, or (c) add it to the exceptions section of `<project-root>/code-review.md`. Use when the user runs `/code-review` or asks to review the current changes / diff. Does not review committed history, whole-repo audits, or PRs on other branches — only the working diff.
-argument-hint: "[path or glob to limit the review to]"
-disable-model-invocation: true
-allowed-tools: Read Bash Glob Grep Edit Write
+description: Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/PRD asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".
 ---
 
-# code-review
+Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
-You are running the `code-review` skill on the **current diff**, not the whole codebase and not git history.
+- **Standards** — does the code conform to this repo's documented coding standards?
+- **Spec** — does the code faithfully implement the originating issue / PRD / spec?
 
-## 0. Scope
+Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
-1. Run `git status` and `git diff --cached`. If nothing is staged, review `git diff` (unstaged) instead. If `$ARGUMENTS` gives a path/glob, limit the diff to it (`git diff -- <path>`).
-2. If there is no diff at all, tell the user and stop — do not invent issues.
-3. Read `<project-root>/code-review.md` if it exists (see §3) — never re-raise an issue that already matches an exception there.
+The issue tracker should have been provided to you — run `/setup-matt-pocock-skills` if `docs/agents/issue-tracker.md` is missing.
 
-## 1. Detect language and style config
+## Process
 
-Before reviewing, figure out what rules actually apply to this project instead of guessing from general knowledge:
+### 1. Pin the fixed point
 
-- Identify the language(s) touched by the diff from file extensions.
-- Look for local style/lint config at the project root and nearest ancestor directories, e.g.: `.eslintrc*`, `.prettierrc*`, `biome.json`, `.editorconfig`, `pyproject.toml` (`[tool.black]`, `[tool.ruff]`), `setup.cfg`, `.flake8`, `.rubocop.yml`, `.golangci.yml`, `rustfmt.toml`, `.clippy.toml`, `checkstyle.xml`, `.stylelintrc*`.
-- Also check `AGENTS.md` / `CLAUDE.md` for house conventions.
-- If a config exists, apply its rules over generic best practice when the two disagree. If no config exists, fall back to established idioms for that language.
+Whatever the user said is the fixed point — a commit SHA, branch name, tag, `main`, `HEAD~5`, etc. If they didn't specify one, ask for it.
 
-## 2. Review the diff
+Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
-Walk the diff hunk by hunk. For each hunk, look for:
+Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here — not inside two parallel sub-agents.
 
-- **Correctness**: logic errors, off-by-one, unhandled edge cases, race conditions, resource leaks.
-- **Style**: violations of the detected config/conventions (naming, formatting the linter would flag, import order, etc). Skip purely cosmetic issues an autoformatter would fix silently — flag only what a linter would fail on.
-- **Maintainability**: needless complexity, duplicated logic, unclear naming, missing error handling at real boundaries.
-- **Security**: injection, secrets, unsafe deserialization, missing auth checks — anything from the OWASP-top-10 family touched by this diff.
+### 2. Identify the spec source
 
-Do not flag anything already covered by an exception in `code-review.md` (§3), and do not flag pre-existing code outside the diff's changed lines.
+Look for the originating spec, in this order:
 
-## 3. Exceptions file
+1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.) — fetch via the workflow in `docs/agents/issue-tracker.md`.
+2. A path the user passed as an argument.
+3. A PRD/spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
-Exceptions live at `<project-root>/code-review.md`, a flat file the skill owns (create it if missing, on first use):
+### 3. Identify the standards sources
 
-```markdown
-# Code review exceptions
+Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
 
-Issues below were reviewed and explicitly accepted. The code-review skill will not re-raise them.
+On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below — a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
-## <file path>
+- **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
+- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation — and, like any standard here, skip anything tooling already enforces.
 
-- L<line or range>: <one-line description of the issue> — accepted <date>, reason: <short reason if the user gave one>
-```
+Each smell reads *what it is* → *how to fix*; match it against the diff:
 
-Group entries by file. Match future findings against this file by file path + issue description (not exact line number, since lines shift) before reporting them.
+- **Mysterious Name** — a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
+- **Duplicated Code** — the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
+- **Feature Envy** — a method that reaches into another object's data more than its own. → move the method onto the data it envies.
+- **Data Clumps** — the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
+- **Primitive Obsession** — a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
+- **Repeated Switches** — the same `switch`/`if`-cascade on the same type recurs across the change. → replace with polymorphism, or one map both sites share.
+- **Shotgun Surgery** — one logical change forces scattered edits across many files in the diff. → gather what changes together into one module.
+- **Divergent Change** — one file or module is edited for several unrelated reasons. → split so each module changes for one reason.
+- **Speculative Generality** — abstraction, parameters, or hooks added for needs the spec doesn't have. → delete it; inline back until a real need shows.
+- **Message Chains** — long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
+- **Middle Man** — a class or function that mostly just delegates onward. → cut it, call the real target direct.
+- **Refused Bequest** — a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
 
-## 4. Resolve each issue with the user, one at a time
+### 4. Spawn both sub-agents in parallel
 
-For every issue that survives §2/§3 filtering, present it (file:line, what's wrong, why) and ask the user to choose:
+Send a single message with two `Agent` tool calls. Use the `general-purpose` subagent for both.
 
-- **a. Fix it** — make the smallest correct edit yourself via `Edit`, then move to the next issue.
-- **b. Ignore it** — skip it, do not modify any file, do not add it to `code-review.md`. It will be raised again on the next review unless the underlying code changes.
-- **c. Add exception** — append it to `code-review.md` under §3's format, with today's date and the user's stated reason (or "no reason given").
+**Standards sub-agent prompt** — include:
 
-Use the AskUserQuestion tool for this choice (options: Fix it / Ignore it / Add exception). Do not batch multiple issues into one question — resolve them in order, one at a time, so the user's answer to issue N doesn't get assumed for issue N+1.
+- The full diff command and commit list.
+- The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full — the sub-agent has no other access to it.
+- The brief: "Report — per file/hunk where relevant — (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls — documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
-## 5. Finish
+**Spec sub-agent prompt** — include:
 
-After all issues are resolved, tell the user:
-- how many issues were found, fixed, ignored, and added as exceptions,
-- the path to `code-review.md` if it was created or modified.
+- The diff command and commit list.
+- The path or fetched contents of the spec.
+- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
-## Non-goals
+If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
-- Does not review committed history or generate a report of past commits.
-- Does not review other branches, PRs, or the whole repository — diff only.
-- Does not run linters/formatters itself or auto-fix formatting; it reasons about the diff by reading the config, it doesn't execute `eslint --fix` or equivalent.
+### 5. Aggregate
+
+Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings — the two axes are deliberately separate (see _Why two axes_).
+
+End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes — that's the reranking the separation exists to prevent.
+
+## Why two axes
+
+A change can pass one axis and fail the other:
+
+- Code that follows every standard but implements the wrong thing → **Standards pass, Spec fail.**
+- Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
+
+Reporting them separately stops one axis from masking the other.
