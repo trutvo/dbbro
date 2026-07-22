@@ -23,7 +23,9 @@ tables:
 
 
 def test_main_reports_database_config_error_and_exits_nonzero(tmp_path, capsys):
-    config_path = _write_good_config(tmp_path, "database:\n  host: h\n")
+    config_path = _write_good_config(
+        tmp_path, "connections:\n  prod:\n    host: h\n"
+    )
 
     exit_code = cli.main(["--config", str(config_path)])
 
@@ -36,7 +38,7 @@ def test_main_reports_database_connection_error_and_exits_nonzero(
 ):
     config_path = _write_good_config(
         tmp_path,
-        "database:\n  host: h\n  name: n\n  user: u\n  password: p\n",
+        "connections:\n  prod:\n    host: h\n    name: n\n    user: u\n    password: p\n",
     )
     monkeypatch.setattr(
         cli,
@@ -53,7 +55,7 @@ def test_main_reports_database_connection_error_and_exits_nonzero(
 def test_database_config_error_message_never_contains_the_password_value():
     from dbbro.db.database_config import resolve_database_config
 
-    raw = {"database": {"host": "h", "user": "u"}}
+    raw = {"connections": {"prod": {"host": "h", "user": "u"}}}
     with pytest.raises(DatabaseConfigError) as exc:
         resolve_database_config(raw, env={})
 

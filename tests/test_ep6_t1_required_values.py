@@ -4,10 +4,10 @@ from dbbro.db.database_config import resolve_database_config
 from dbbro.db.errors import DatabaseConfigError
 
 
-def _raw(database=None):
+def _raw(connection=None, alias="prod"):
     raw = {"tables": {}}
-    if database is not None:
-        raw["database"] = database
+    if connection is not None:
+        raw["connections"] = {alias: connection}
     return raw
 
 
@@ -26,13 +26,20 @@ def test_resolve_database_config_returns_config_for_full_valid_section():
 def test_resolve_database_config_accepts_missing_password_in_shape():
     raw = _raw({"host": "db.example.com", "name": "mydb", "user": "alice"})
 
-    config = resolve_database_config(raw, env={"DBBRO_DB_PWD": "envpass"})
+    config = resolve_database_config(raw, env={"DBBRO_DB_PWD_PROD": "envpass"})
 
     assert config.password == "envpass"
 
 
-def test_resolve_database_config_raises_when_database_section_absent():
-    raw = _raw(database=None)
+def test_resolve_database_config_raises_when_connections_section_absent():
+    raw = _raw(connection=None)
+
+    with pytest.raises(DatabaseConfigError):
+        resolve_database_config(raw, env={})
+
+
+def test_resolve_database_config_raises_when_connections_section_empty():
+    raw = {"tables": {}, "connections": {}}
 
     with pytest.raises(DatabaseConfigError):
         resolve_database_config(raw, env={})

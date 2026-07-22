@@ -54,9 +54,10 @@ def test_draw_panel_truncates_values_wider_than_terminal_width():
 
 
 def test_draw_panel_shows_only_rows_within_scroll_window():
-    # visible_height = max(1, (8-1)-4-2) = 1: the bottom row is reserved for
-    # the EP-2 help bar (N3/AC7), so one row less is usable than before.
-    screen = StubScreen(height=8, width=80)
+    # visible_height = (7-1) - 1 - 4 = 1: the bottom row is reserved for the
+    # EP-2 help bar, and row 1 is where the panel (now flush against the
+    # breadcrumb, with no separator row) starts.
+    screen = StubScreen(height=7, width=80)
     rows = [("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]
 
     draw_panel(screen, "T", rows, highlighted_index=2, scroll_offset=2)
@@ -66,3 +67,19 @@ def test_draw_panel_shows_only_rows_within_scroll_window():
     assert "a" not in text
     assert "b" not in text
     assert "d" not in text
+
+
+def test_draw_panel_pads_short_row_lists_with_blank_non_selectable_rows():
+    screen = StubScreen(height=10, width=80)
+    rows = [("a", "1")]
+
+    draw_panel(screen, "T", rows, highlighted_index=0, scroll_offset=0)
+
+    reverse_calls = [c for c in screen.calls if isinstance(c, tuple) and c[3] & curses.A_REVERSE]
+    assert len(reverse_calls) == 1
+
+    calls = [c for c in screen.calls if isinstance(c, tuple)]
+    max_y = max(c[0] for c in calls)
+    # The bottom border still reaches the row above the help bar, even
+    # though there's only one real row of data.
+    assert max_y == screen._height - 2

@@ -3,7 +3,7 @@ import curses
 from .breadcrumb_bar import render_breadcrumb_line
 from .help_bar import HelpKey, render_help_line
 
-TOP_RESERVED_ROWS = 2
+TOP_RESERVED_ROWS = 1
 
 PANEL_CHARS = {
     "tl": "┌", "tr": "┐", "bl": "└", "br": "┘",
@@ -57,8 +57,8 @@ def _center_origin(box_width: int, box_height: int, max_width: int, max_height: 
 
 def draw_breadcrumb_bar(screen, stops: list) -> None:
     """Draws the breadcrumb at row 0, fitted to the terminal's current
-    width. Row 1 is left blank (already erased per-frame), separating the
-    breadcrumb from the screen body."""
+    width. The screen body starts immediately on row 1, flush against the
+    breadcrumb."""
     _, max_width = screen.getmaxyx()
     line = render_breadcrumb_line(stops, max_width)
     _write_line(screen, 0, 0, line)
@@ -95,10 +95,14 @@ def draw_panel(
     highlighted_index: int,
     scroll_offset: int,
 ) -> None:
-    """Draws a single-line-bordered panel: `header` as the title row, then
+    """Draws a single-line-bordered panel that fills the whole screen body
+    (from row TOP_RESERVED_ROWS down to the row above the help bar, full
+    width): `header` as the title row, then
     rows[scroll_offset:scroll_offset+visible_height] as name/value rows,
     truncating any value that doesn't fit and reverse-videoing the row at
-    `highlighted_index`."""
+    `highlighted_index`. If fewer rows exist than fit on screen, the panel
+    is padded with blank, non-selectable padding rows so its border still
+    reaches the bottom of the screen."""
     max_height, max_width = screen.getmaxyx()
     max_height = _usable_height(screen)
     # The name column must fit the header text too, not just column names,
@@ -110,7 +114,8 @@ def draw_panel(
 
     # Full border width = name_width + value_width + 7 (2 corners + 2 border
     # cells around each column + 1 divider). Shrink value_width first, then
-    # name_width, to fit within the terminal (FR15).
+    # name_width, to fit within the terminal (FR15). If there's slack instead,
+    # grow value_width so the panel's border reaches the terminal's edge.
     border_width = name_width + value_width + 7
     if border_width > max_width:
         excess = border_width - max_width
@@ -119,13 +124,15 @@ def draw_panel(
         excess -= shrink_value
         if excess > 0:
             name_width = max(0, name_width - excess)
+    elif border_width < max_width:
+        value_width += max_width - border_width
     value_width = max(1, value_width)
     box_width = name_width + value_width + 7
 
-    visible_height = max(1, max_height - 4 - TOP_RESERVED_ROWS)
+    start_y, start_x = TOP_RESERVED_ROWS, 0
+    box_height = max(4, max_height - start_y)
+    visible_height = box_height - 4
     visible_rows = rows[scroll_offset : scroll_offset + visible_height]
-    box_height = 3 + len(visible_rows) + 1
-    start_y, start_x = _center_origin(box_width, box_height, max_width, max_height)
 
     c = PANEL_CHARS
     _write_line(screen, start_y, start_x, c["tl"] + c["h"] * (name_width + 2) + c["t_down"] + c["h"] * (value_width + 2) + c["tr"])
@@ -137,14 +144,24 @@ def draw_panel(
     )
     _write_line(screen, start_y + 2, start_x, c["t_right"] + c["h"] * (name_width + 2) + c["cross"] + c["h"] * (value_width + 2) + c["t_left"])
 
-    for i, (name, value) in enumerate(visible_rows):
-        row_index = scroll_offset + i
-        attr = curses.A_REVERSE if row_index == highlighted_index else 0
+    empty_row_cell = " " * name_width
+    empty_value_cell = " " * value_width
+    for i in range(visible_height):
         row_y = start_y + 3 + i
         if row_y >= max_height - 1:
             break
-        name_text = truncate(name, name_width).ljust(name_width)
-        value_text = truncate(value, value_width).rjust(value_width)
+        if i < len(visible_rows):
+            name, value = visible_rows[i]
+            row_index = scroll_offset + i
+            attr = curses.A_REVERSE if row_index == highlighted_index else 0
+            name_text = truncate(name, name_width).ljust(name_width)
+            value_text = truncate(value, value_width).rjust(value_width)
+        else:
+            # Padding row: fills unused vertical space so the panel's border
+            # still reaches the bottom of the screen. Not selectable.
+            attr = 0
+            name_text = empty_row_cell
+            value_text = empty_value_cell
         # 1 padding space on each side of both columns, matching the border's
         # h*(width+2) segments exactly, so every row's right edge lines up.
         _write_line(

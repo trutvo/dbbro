@@ -24,11 +24,12 @@ tables:
     columns: [id, name]
     primary_key: id
     search_columns: [name]
-database:
-  host: db.example.com
-  name: mydb
-  user: dbbro
-  password: secret
+connections:
+  prod:
+    host: db.example.com
+    name: mydb
+    user: dbbro
+    password: secret
 """
     )
     called = []

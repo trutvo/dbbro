@@ -92,6 +92,7 @@ tests/test_ep6_t3_password_resolution.py
 tests/test_ep6_t4_sequencing.py
 tests/test_ep6_t5_connect.py
 tests/test_ep6_t6_failure_reporting.py
+tests/test_ep6_t7_connection_selection.py
 tests/test_ep7_t10_prompt_field_width.py
 tests/test_ep7_t11_panel_border_alignment.py
 tests/test_ep7_t12_header_divider.py

@@ -25,6 +25,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--config", required=True, help="Path to the YAML schema configuration file"
     )
     parser.add_argument(
+        "--connection",
+        help=(
+            "Alias of the connection to use, from the config's 'connections' "
+            "mapping. Defaults to the config's 'default' alias, or the sole "
+            "connection if only one is declared."
+        ),
+    )
+    parser.add_argument(
         "--search",
         help=(
             "Quick-start search: '<Table>.<column>=<value>', e.g. "
@@ -103,7 +111,9 @@ def main(argv: list[str] | None = None) -> int:
         return _report_and_exit(exc)
 
     try:
-        db_config = resolve_database_config(raw, env=os.environ)
+        db_config = resolve_database_config(
+            raw, env=os.environ, connection=args.connection
+        )
         conn = connect(db_config)
     except (DatabaseConfigError, DatabaseConnectionError) as exc:
         return _report_and_exit(exc)

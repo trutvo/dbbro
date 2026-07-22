@@ -110,11 +110,12 @@ tables:
     columns: [id, uuid, name]
     primary_key: id
     search_columns: [uuid]
-database:
-  host: h
-  name: n
-  user: u
-  password: p
+connections:
+  prod:
+    host: h
+    name: n
+    user: u
+    password: p
 """
     )
     return config_path

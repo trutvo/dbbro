@@ -15,7 +15,7 @@ tables:
     )
     called = []
     monkeypatch.setattr(
-        cli, "resolve_database_config", lambda raw, env: called.append(1)
+        cli, "resolve_database_config", lambda raw, env, connection=None: called.append(1)
     )
 
     exit_code = cli.main(["--config", str(config_path)])
@@ -35,18 +35,19 @@ tables:
     columns: [id, name]
     primary_key: id
     search_columns: [name]
-database:
-  host: h
-  name: n
-  user: u
-  password: p
+connections:
+  prod:
+    host: h
+    name: n
+    user: u
+    password: p
 """
     )
     called = []
     monkeypatch.setattr(
         cli,
         "resolve_database_config",
-        lambda raw, env: called.append(1) or _fake_config(),
+        lambda raw, env, connection=None: called.append(1) or _fake_config(),
     )
     monkeypatch.setattr(cli, "connect", lambda db_config: "fake-connection")
     monkeypatch.setattr(cli, "run_ui", lambda config, conn, initial_outcome=None: None)

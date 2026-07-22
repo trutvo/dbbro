@@ -22,19 +22,20 @@ def test_draw_modal_is_centered_horizontally_and_vertically():
     assert min_y == (40 - box_height) // 2
 
 
-def test_draw_panel_is_centered_horizontally_and_vertically():
+def test_draw_panel_fills_the_screen_anchored_top_left():
     screen = StubScreen(height=40, width=100)
     rows = [("id", "1"), ("name", "Acme")]
 
     draw_panel(screen, "Company", rows, highlighted_index=0, scroll_offset=0)
 
     min_y, max_y, min_x, max_x = _bounds(screen)
-    box_width = max_x - min_x
-    box_height = max_y - min_y + 1
-    assert min_x == (100 - box_width) // 2
-    # The bottom row is reserved for the EP-2 help bar (N3/AC7), so
-    # centering is computed against height - 1, not the raw terminal height.
-    assert min_y == (39 - box_height) // 2
+    # The panel is anchored at row TOP_RESERVED_ROWS, col 0 (flush against
+    # the breadcrumb, full width), not centered.
+    assert min_y == TOP_RESERVED_ROWS
+    assert min_x == 0
+    assert max_x == 100
+    # The bottom border reaches the row above the EP-2 help bar.
+    assert max_y == 40 - 2
 
 
 def test_oversized_box_clamps_horizontally_instead_of_negative_position():
