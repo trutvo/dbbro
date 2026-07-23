@@ -69,8 +69,8 @@ def test_two_relations_on_same_local_column_both_produce_rows(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
-    assert ("", "has Shop 1001") in rows
-    assert ("", "has Orders ORD1") in rows
+    assert ("", "=> Shop[1001]") in rows
+    assert ("", "=> Orders[ORD1]") in rows
 
 
 def test_relation_groups_appear_in_table_relations_order(
@@ -84,8 +84,8 @@ def test_relation_groups_appear_in_table_relations_order(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
-    shop_index = rows.index(("", "has Shop 1001"))
-    order_index = rows.index(("", "has Orders ORD1"))
+    shop_index = rows.index(("", "=> Shop[1001]"))
+    order_index = rows.index(("", "=> Orders[ORD1]"))
     assert shop_index < order_index
 
 

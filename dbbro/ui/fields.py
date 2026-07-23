@@ -12,7 +12,6 @@ class Field:
 
 @dataclass(frozen=True)
 class RelationField(Field):
-    label: str
     related_table: str
     foreign_key_value: str
 
@@ -31,7 +30,6 @@ def build_fields(table: Table, row: dict[str, Any]) -> list[Field]:
                 RelationField(
                     column=column,
                     value=f"{relation.target_table}[{raw_value}]",
-                    label=relation.label,
                     related_table=relation.target_table,
                     foreign_key_value=str(raw_value),
                 )

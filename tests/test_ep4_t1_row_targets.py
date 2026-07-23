@@ -85,7 +85,7 @@ def test_related_entity_row_target_holds_its_own_record(membership_shop_config, 
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, row_targets = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    continuation_index = rows.index(("", "has Shop 1001"))
+    continuation_index = rows.index(("", "=> Shop[1001]"))
     target = row_targets[continuation_index]
     assert isinstance(target, RelatedEntityTarget)
     assert target.target_table == "Shop"

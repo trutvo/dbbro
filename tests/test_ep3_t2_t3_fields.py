@@ -79,14 +79,6 @@ def test_build_fields_relation_column_uses_related_table_bracket_fk_format():
     assert relation_field.value == "Company[42]"
 
 
-def test_build_fields_relation_column_includes_configured_label():
-    row = {"id": "1", "name": "Alice", "company_id": "42"}
-
-    fields = build_fields(RELATION_TABLE, row)
-
-    assert fields[2].label == "belongs to company"
-
-
 def test_build_fields_relation_on_primary_key_still_formatted_as_relation():
     row = {"user_id": "7", "bio": "hi"}
 

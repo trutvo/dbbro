@@ -70,7 +70,7 @@ def build_display_rows(
         for i, relation in enumerate(column_relations):
             target_table = config.tables[relation.target_table]
             for match in matches_by_relation[i]:
-                value = f"{relation.label} {identifying_value(target_table, match)}"
+                value = f"=> {relation.target_table}[{identifying_value(target_table, match)}]"
                 rows.append(("", value))
                 row_targets.append(
                     RelatedEntityTarget(target_table=relation.target_table, record=match)

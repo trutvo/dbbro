@@ -65,6 +65,6 @@ def test_single_match_produces_exactly_one_continuation_row(membership_shop_conf
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     assert rows == [
         ("id", "123456"),
-        ("", "has Shop 1001"),
+        ("", "=> Shop[1001]"),
         ("creationDate", "2025-11-05 00:39:34"),
     ]

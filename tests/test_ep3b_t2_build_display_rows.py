@@ -79,9 +79,9 @@ def test_relation_column_appends_one_row_per_matched_related_entity(
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     continuation_rows = [r for r in rows if r[0] == ""]
     assert continuation_rows == [
-        ("", "has Shop 1001"),
-        ("", "has Shop 1002"),
-        ("", "has Shop 1003"),
+        ("", "=> Shop[1001]"),
+        ("", "=> Shop[1002]"),
+        ("", "=> Shop[1003]"),
     ]
 
 
@@ -94,7 +94,7 @@ def test_continuation_rows_use_empty_column_name(membership_shop_config, conn_wi
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    assert rows[1] == ("", "has Shop 1001")
+    assert rows[1] == ("", "=> Shop[1001]")
 
 
 def test_row_targets_are_parallel_to_rows(membership_shop_config, conn_with_shops):
