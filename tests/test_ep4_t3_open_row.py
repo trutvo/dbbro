@@ -22,7 +22,6 @@ def membership_shop_config():
                 target_table="Shop",
                 local_column="id",
                 foreign_column="primeMembership_id",
-                label="has Shop",
             ),
         ),
     )

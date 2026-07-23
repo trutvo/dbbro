@@ -52,35 +52,21 @@ def validate_tables(raw: dict) -> list[ConfigIssue]:
 def validate_relations(raw: dict) -> list[ConfigIssue]:
     issues: list[ConfigIssue] = []
     raw_tables = raw.get("tables") or {}
-    seen_labels: dict[str, str] = {}
 
     for name, table_def in raw_tables.items():
         columns = list(table_def.get("columns") or [])
         relations = table_def.get("relations") or []
 
         for relation_def in relations:
-            label = relation_def.get("label")
             target_table = relation_def.get("table")
             local_column = relation_def.get("local_column")
             foreign_column = relation_def.get("foreign_column")
-
-            if label in seen_labels:
-                issues.append(
-                    ConfigIssue(
-                        relation_label=label,
-                        message=(
-                            "relation label is used by more than one relation "
-                            f"(also declared on table '{seen_labels[label]}')"
-                        ),
-                    )
-                )
-            else:
-                seen_labels[label] = name
+            relation_label = f"{local_column} -> {target_table}"
 
             if target_table not in raw_tables:
                 issues.append(
                     ConfigIssue(
-                        relation_label=label,
+                        relation_label=relation_label,
                         message=f"relation targets undeclared table '{target_table}'",
                     )
                 )
@@ -88,7 +74,7 @@ def validate_relations(raw: dict) -> list[ConfigIssue]:
             if local_column not in columns:
                 issues.append(
                     ConfigIssue(
-                        relation_label=label,
+                        relation_label=relation_label,
                         message=(
                             f"relation's local column '{local_column}' is not a "
                             f"declared column of table '{name}'"
@@ -101,7 +87,7 @@ def validate_relations(raw: dict) -> list[ConfigIssue]:
                 if foreign_column not in target_columns:
                     issues.append(
                         ConfigIssue(
-                            relation_label=label,
+                            relation_label=relation_label,
                             message=(
                                 f"relation's foreign column '{foreign_column}' is not "
                                 f"a declared column of table '{target_table}'"
@@ -121,7 +107,6 @@ def _build_config(raw: dict) -> Config:
                 target_table=r.get("table"),
                 local_column=r.get("local_column"),
                 foreign_column=r.get("foreign_column"),
-                label=r.get("label"),
             )
             for r in (table_def.get("relations") or [])
         )

@@ -20,13 +20,11 @@ def multi_relation_config():
                 target_table="Shop",
                 local_column="id",
                 foreign_column="primeMembership_id",
-                label="has Shop",
             ),
             Relation(
                 target_table="Orders",
                 local_column="id",
                 foreign_column="membership_id",
-                label="has Orders",
             ),
         ),
     )

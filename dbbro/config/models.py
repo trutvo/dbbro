@@ -7,7 +7,6 @@ class Relation:
     target_table: str
     local_column: str
     foreign_column: str
-    label: str
 
 
 @dataclass(frozen=True)

@@ -12,7 +12,6 @@ RELATION_TABLE = Table(
             target_table="Company",
             local_column="company_id",
             foreign_column="id",
-            label="belongs to company",
         ),
     ),
 )
@@ -26,13 +25,11 @@ TWO_RELATION_TABLE = Table(
             target_table="Company",
             local_column="company_id",
             foreign_column="id",
-            label="belongs to company",
         ),
         Relation(
             target_table="Employee",
             local_column="manager_id",
             foreign_column="id",
-            label="managed by",
         ),
     ),
 )
@@ -46,7 +43,6 @@ PK_RELATION_TABLE = Table(
             target_table="User",
             local_column="user_id",
             foreign_column="id",
-            label="profile of",
         ),
     ),
 )

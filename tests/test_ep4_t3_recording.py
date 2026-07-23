@@ -24,7 +24,6 @@ def rel_config():
                 target_table="Company",
                 local_column="company_id",
                 foreign_column="id",
-                label="belongs to company",
             ),
         ),
     )

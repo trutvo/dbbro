@@ -32,7 +32,7 @@ def test_table_view_includes_open_when_relation_field_selected():
         name="Company",
         columns=("id", "shop_id"),
         primary_key="id",
-        relations=(Relation(target_table="Shop", local_column="shop_id", foreign_column="id", label="Shop"),),
+        relations=(Relation(target_table="Shop", local_column="shop_id", foreign_column="id"),),
     )
     shop = Table(name="Shop", columns=("id",), primary_key="id")
     config = Config(tables=MappingProxyType({"Company": table, "Shop": shop}))
