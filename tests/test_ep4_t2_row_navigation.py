@@ -58,26 +58,39 @@ def test_down_moves_through_every_row_including_continuation_rows(
     membership_shop_config, conn_with_three_shops
 ):
     view = _view(membership_shop_config, conn_with_three_shops)
-    assert len(view.rows) == 5  # id, 3 shops, creationDate
+    # rows = [section FIELDS, field creationDate, section REFERENCED BY,
+    # group header, related shop0, related shop1, related shop2] - "id"
+    # is Membership's own primary key/relation column so it produces no
+    # field row of its own, only the Referenced By group below.
+    assert len(view.rows) == 7
+
+    selectable_indices = [i for i, r in enumerate(view.rows) if r.selectable]
+    assert selectable_indices == [1, 4, 5, 6]
 
     seen = [view.selected]
     for _ in range(4):
         view.handle_key(keys.DOWN)
         seen.append(view.selected)
 
-    assert seen == [0, 1, 2, 3, 4]
+    # Moving down visits every selectable row (the field, then each
+    # related-entity row), then wraps back to the first.
+    assert seen == [1, 4, 5, 6, 1]
 
 
 def test_up_down_wraps_across_full_row_count(membership_shop_config, conn_with_three_shops):
     view = _view(membership_shop_config, conn_with_three_shops)
+    selectable_indices = [i for i, r in enumerate(view.rows) if r.selectable]
+    assert view.selected == selectable_indices[0]
 
     view.handle_key(keys.UP)
 
-    assert view.selected == len(view.rows) - 1
+    assert view.selected == selectable_indices[-1]
 
-    for _ in range(len(view.rows) - 1):
+    # A full cycle through the remaining selectable rows (moving up)
+    # returns to the starting selectable row.
+    for _ in range(len(selectable_indices) - 1):
         view.handle_key(keys.UP)
-    assert view.selected == 0
+    assert view.selected == selectable_indices[0]
 
 
 def test_scroll_offset_tracks_selected_row_directly(membership_shop_config, conn_with_three_shops):
@@ -86,5 +99,7 @@ def test_scroll_offset_tracks_selected_row_directly(membership_shop_config, conn
     for _ in range(3):
         view.handle_key(keys.DOWN)
 
-    assert view.selected == 3
-    assert view.scroll_offset == 2
+    # selected walks 1 -> 4 -> 5 -> 6 (the selectable rows), and the
+    # scroll window re-clamps around each in turn.
+    assert view.selected == 6
+    assert view.scroll_offset == 5

@@ -1,8 +1,8 @@
 from dbbro.config.models import Table
-from dbbro.ui.relation_rows import identifying_value
+from dbbro.ui.relation_rows import format_record
 
 
-def test_identifying_value_concatenates_search_columns_in_order():
+def test_format_record_renders_all_columns_as_key_value_pairs_in_declared_order():
     table = Table(
         name="Shop",
         columns=("id", "tsId", "name"),
@@ -10,10 +10,10 @@ def test_identifying_value_concatenates_search_columns_in_order():
         search_columns=("tsId", "name"),
     )
     record = {"id": "1", "tsId": "543334", "name": "Acme"}
-    assert identifying_value(table, record) == "543334 Acme"
+    assert format_record(table, record) == "id=1, tsId=543334, name=Acme"
 
 
-def test_identifying_value_uses_only_declared_search_columns():
+def test_format_record_ignores_search_columns_and_includes_every_column():
     table = Table(
         name="Shop",
         columns=("id", "tsId", "name", "url"),
@@ -21,10 +21,13 @@ def test_identifying_value_uses_only_declared_search_columns():
         search_columns=("tsId",),
     )
     record = {"id": "1", "tsId": "543334", "name": "Acme", "url": "http://x"}
-    assert identifying_value(table, record) == "543334"
+    result = format_record(table, record)
+    assert result == "id=1, tsId=543334, name=Acme, url=http://x"
+    for column in table.columns:
+        assert f"{column}=" in result
 
 
-def test_identifying_value_single_search_column_returns_bare_value():
+def test_format_record_single_column_returns_key_value_pair():
     table = Table(
         name="Shop",
         columns=("id", "tsId"),
@@ -32,10 +35,10 @@ def test_identifying_value_single_search_column_returns_bare_value():
         search_columns=("tsId",),
     )
     record = {"id": "1", "tsId": "543334"}
-    assert identifying_value(table, record) == "543334"
+    assert format_record(table, record) == "id=1, tsId=543334"
 
 
-def test_identifying_value_falls_back_to_first_column_when_search_columns_empty():
+def test_format_record_works_when_search_columns_empty():
     table = Table(
         name="Membership",
         columns=("id", "name"),
@@ -43,4 +46,4 @@ def test_identifying_value_falls_back_to_first_column_when_search_columns_empty(
         search_columns=(),
     )
     record = {"id": "123456", "name": "whatever"}
-    assert identifying_value(table, record) == "123456"
+    assert format_record(table, record) == "id=123456, name=whatever"

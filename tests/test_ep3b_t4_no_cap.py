@@ -54,8 +54,8 @@ def test_build_display_rows_emits_a_row_per_match_with_no_cap(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    continuation_rows = [r for r in rows if r[0] == ""]
-    assert len(continuation_rows) == 500
+    related_rows = [r for r in rows if r.kind == "related"]
+    assert len(related_rows) == 500
 
 
 def test_table_view_holds_all_rows_uncapped(membership_shop_config, conn_with_shops):
@@ -77,4 +77,6 @@ def test_table_view_holds_all_rows_uncapped(membership_shop_config, conn_with_sh
         Breadcrumb(),
         visible_height=5,
     )
-    assert len(view.rows) == 502
+    # FIELDS section (1) + creationDate field (1) + REFERENCED BY section
+    # (1) + group header (1) + 500 related rows.
+    assert len(view.rows) == 504

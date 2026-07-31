@@ -2,19 +2,16 @@ import curses
 
 from .breadcrumb_bar import render_breadcrumb_line
 from .help_bar import HelpKey, render_help_line
+from .relation_rows import DisplayRow
 
-TOP_RESERVED_ROWS = 1
+TOP_RESERVED_ROWS = 2
 
-PANEL_CHARS = {
-    "tl": "┌", "tr": "┐", "bl": "└", "br": "┘",
-    "h": "─", "v": "│", "cross": "┼", "t_down": "┬", "t_up": "┴",
-    "t_right": "├", "t_left": "┤",
-}
 MODAL_CHARS = {
     "tl": "╔", "tr": "╗", "bl": "╚", "br": "╝",
     "h": "═", "v": "║", "cross": "╬", "t_down": "╦", "t_up": "╩",
     "t_right": "╠", "t_left": "╣",
 }
+SECTION_BOX_CHARS = {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│"}
 
 
 def truncate(text: str, width: int) -> str:
@@ -57,8 +54,8 @@ def _center_origin(box_width: int, box_height: int, max_width: int, max_height: 
 
 def draw_breadcrumb_bar(screen, stops: list) -> None:
     """Draws the breadcrumb at row 0, fitted to the terminal's current
-    width. The screen body starts immediately on row 1, flush against the
-    breadcrumb."""
+    width. Row 1 is left blank, so the screen body starts on row 2 with a
+    visible gap below the breadcrumb."""
     _, max_width = screen.getmaxyx()
     line = render_breadcrumb_line(stops, max_width)
     _write_line(screen, 0, 0, line)
@@ -88,89 +85,142 @@ def draw_modal(screen, lines: list[str], highlighted_index: int | None = None) -
     _write_line(screen, last_row, start_x, c["bl"] + c["h"] * (box_width - 2) + c["br"])
 
 
+def _full_width_text(row: DisplayRow) -> str:
+    return row.value
+
+
+def _section_top_border(title: str, width: int) -> str:
+    c = SECTION_BOX_CHARS
+    prefix = f"{c['tl']}{c['h']} {title} "
+    if len(prefix) + 1 >= width:
+        return truncate(prefix, max(0, width - 1)) + c["tr"]
+    return prefix + c["h"] * (width - len(prefix) - 1) + c["tr"]
+
+
+def _section_bottom_border(width: int) -> str:
+    c = SECTION_BOX_CHARS
+    return c["bl"] + c["h"] * max(0, width - 2) + c["br"]
+
+
+def _section_body_line(text: str, width: int, attr: int) -> tuple[str, int]:
+    c = SECTION_BOX_CHARS
+    interior = max(0, width - 4)
+    content = truncate(text, interior).ljust(interior)
+    return f"{c['v']} {content} {c['v']}", attr
+
+
+def _split_into_sections(rows: list[DisplayRow]) -> list[tuple[str, list[tuple[int, DisplayRow]]]]:
+    """Groups `rows` by their preceding "section" row: each section's title
+    (its value, stripped of indentation) paired with the (index, row) pairs
+    of every row up to the next "section" row. Any rows preceding the first
+    "section" row (not expected from build_display_rows, but possible from
+    ad-hoc row lists) are kept, boxed under an empty title, rather than
+    silently dropped."""
+    sections: list[tuple[str, list[tuple[int, DisplayRow]]]] = []
+    title = ""
+    body: list[tuple[int, DisplayRow]] = []
+    started = False
+    for i, row in enumerate(rows):
+        if row.kind == "section":
+            if started or body:
+                sections.append((title, body))
+            title = row.value.strip()
+            body = []
+            started = True
+        else:
+            body.append((i, row))
+    if started or body:
+        sections.append((title, body))
+    return sections
+
+
+def _build_section_lines(
+    rows: list[DisplayRow], highlighted_index: int, width: int
+) -> tuple[list[tuple[str, int]], dict[int, int], dict[int, int]]:
+    """Renders `rows` as one box per section: a top border with the
+    section's title embedded, one bordered line per row (name_width scoped
+    to that section's own field/reference rows), a bottom border, and a
+    blank line before the next section. Returns the rendered (text, attr)
+    lines, a row-index -> line-index map, and a row-index -> line-index map
+    for rows that are the first row of their section (pointing at that
+    section's own top-border line, so scrolling to a section's first row can
+    reveal its border too)."""
+    sections = _split_into_sections(rows)
+    lines: list[tuple[str, int]] = []
+    row_line_index: dict[int, int] = {}
+    section_top_line_index: dict[int, int] = {}
+    for section_i, (title, body) in enumerate(sections):
+        top_line = len(lines)
+        lines.append((_section_top_border(title, width), curses.A_BOLD))
+        two_col = [r for _, r in body if r.kind in ("field", "reference")]
+        name_width = max((len(r.name) for r in two_col), default=0)
+        for row_i, (index, row) in enumerate(body):
+            if row_i == 0:
+                section_top_line_index[index] = top_line
+            row_line_index[index] = len(lines)
+            attr = curses.A_REVERSE if index == highlighted_index else 0
+            if row.kind in ("field", "reference"):
+                text = f"{row.name.ljust(name_width)}  {row.value}"
+            else:
+                text = _full_width_text(row)
+            lines.append(_section_body_line(text, width, attr))
+        lines.append((_section_bottom_border(width), 0))
+        if section_i < len(sections) - 1:
+            lines.append((" " * width, 0))
+    return lines, row_line_index, section_top_line_index
+
+
+def content_fits(rows: list[DisplayRow], screen) -> bool:
+    """True if every rendered line for `rows` (including box borders and the
+    blank lines between sections) fits within the screen's current usable
+    body height (below TOP_RESERVED_ROWS, above the help bar) without
+    needing to scroll."""
+    max_height, max_width = screen.getmaxyx()
+    max_height = _usable_height(screen)
+    visible_height = max(0, max_height - TOP_RESERVED_ROWS)
+    lines, _, _ = _build_section_lines(rows, -1, max_width)
+    return len(lines) <= visible_height
+
+
 def draw_panel(
     screen,
-    header: str,
-    rows: list[tuple[str, str]],
+    rows: list[DisplayRow],
     highlighted_index: int,
     scroll_offset: int,
 ) -> None:
-    """Draws a single-line-bordered panel that fills the whole screen body
-    (from row TOP_RESERVED_ROWS down to the row above the help bar, full
-    width): `header` as the title row, then
-    rows[scroll_offset:scroll_offset+visible_height] as name/value rows,
-    truncating any value that doesn't fit and reverse-videoing the row at
-    `highlighted_index`. If fewer rows exist than fit on screen, the panel
-    is padded with blank, non-selectable padding rows so its border still
-    reaches the bottom of the screen."""
+    """Draws each section (as split by "section"-kind rows) in its own
+    single-line box, full terminal width, starting at TOP_RESERVED_ROWS,
+    with the section's title embedded in its top border and one blank line
+    between boxes. The first section's own title carries whatever text its
+    row holds (e.g. the table name, for the Fields section) — there is no
+    separate header line above the boxes. "field"/"reference" rows print as
+    `name` left-padded to the widest name in that section, two spaces, then
+    `value`; "group"/"related" rows print their full-width text in the
+    plain attribute. The row at `highlighted_index` is reverse-videoed within
+    its box's interior (never over the border characters). Scrolling starts
+    rendering at the line for the row at `scroll_offset`, including that
+    row's own section's top border only when `scroll_offset` is the first
+    row of its section — otherwise a box may render truncated, with no top
+    or bottom border visible, which is acceptable."""
     max_height, max_width = screen.getmaxyx()
     max_height = _usable_height(screen)
-    # The name column must fit the header text too, not just column names,
-    # so a table name longer than every column name is never truncated
-    # just because the divider now splits the header row (see draw_panel's
-    # header-row construction below).
-    name_width = max(len(header), max((len(name) for name, _ in rows), default=0))
-    value_width = max((len(value) for _, value in rows), default=0)
-
-    # Full border width = name_width + value_width + 7 (2 corners + 2 border
-    # cells around each column + 1 divider). Shrink value_width first, then
-    # name_width, to fit within the terminal (FR15). If there's slack instead,
-    # grow value_width so the panel's border reaches the terminal's edge.
-    border_width = name_width + value_width + 7
-    if border_width > max_width:
-        excess = border_width - max_width
-        shrink_value = min(value_width, excess)
-        value_width -= shrink_value
-        excess -= shrink_value
-        if excess > 0:
-            name_width = max(0, name_width - excess)
-    elif border_width < max_width:
-        value_width += max_width - border_width
-    value_width = max(1, value_width)
-    box_width = name_width + value_width + 7
-
     start_y, start_x = TOP_RESERVED_ROWS, 0
-    box_height = max(4, max_height - start_y)
-    visible_height = box_height - 4
-    visible_rows = rows[scroll_offset : scroll_offset + visible_height]
 
-    c = PANEL_CHARS
-    _write_line(screen, start_y, start_x, c["tl"] + c["h"] * (name_width + 2) + c["t_down"] + c["h"] * (value_width + 2) + c["tr"])
-    header_text = truncate(header, name_width).ljust(name_width)
-    empty_cell = " " * value_width
-    _write_line(
-        screen, start_y + 1, start_x,
-        f"{c['v']} {header_text} {c['v']} {empty_cell} {c['v']}",
-    )
-    _write_line(screen, start_y + 2, start_x, c["t_right"] + c["h"] * (name_width + 2) + c["cross"] + c["h"] * (value_width + 2) + c["t_left"])
+    lines, row_line_index, section_top_line_index = _build_section_lines(rows, highlighted_index, max_width)
 
-    empty_row_cell = " " * name_width
-    empty_value_cell = " " * value_width
-    for i in range(visible_height):
-        row_y = start_y + 3 + i
-        if row_y >= max_height - 1:
+    visible_height = max(0, max_height - start_y)
+
+    start_line = 0
+    if rows:
+        start_row = min(scroll_offset, len(rows) - 1)
+        start_line = section_top_line_index.get(start_row, row_line_index.get(start_row, 0))
+
+    visible_lines = lines[start_line : start_line + visible_height]
+    for i, (text, attr) in enumerate(visible_lines):
+        row_y = start_y + i
+        if row_y >= max_height:
             break
-        if i < len(visible_rows):
-            name, value = visible_rows[i]
-            row_index = scroll_offset + i
-            attr = curses.A_REVERSE if row_index == highlighted_index else 0
-            name_text = truncate(name, name_width).ljust(name_width)
-            value_text = truncate(value, value_width).rjust(value_width)
-        else:
-            # Padding row: fills unused vertical space so the panel's border
-            # still reaches the bottom of the screen. Not selectable.
-            attr = 0
-            name_text = empty_row_cell
-            value_text = empty_value_cell
-        # 1 padding space on each side of both columns, matching the border's
-        # h*(width+2) segments exactly, so every row's right edge lines up.
-        _write_line(
-            screen, row_y, start_x,
-            f"{c['v']} {name_text} {c['v']} {value_text} {c['v']}", attr,
-        )
-
-    last_row = max(start_y, min(start_y + box_height - 1, max_height - 1))
-    _write_line(screen, last_row, start_x, c["bl"] + c["h"] * (name_width + 2) + c["t_up"] + c["h"] * (value_width + 2) + c["br"])
+        _write_line(screen, row_y, start_x, text, attr)
 
 
 def draw_help_bar(screen, keys: list[HelpKey]) -> None:

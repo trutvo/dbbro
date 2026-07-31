@@ -64,7 +64,7 @@ tests/test_ep3_t2_t3_fields.py
 tests/test_ep3_t4_t5_selection_scroll.py
 tests/test_ep3_t6_t8_navigation.py
 tests/test_ep3_t7_breadcrumb.py
-tests/test_ep3b_t1_identifying_value.py
+tests/test_ep3b_t1_format_record.py
 tests/test_ep3b_t2_build_display_rows.py
 tests/test_ep3b_t3_cardinality.py
 tests/test_ep3b_t4_no_cap.py
