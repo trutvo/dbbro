@@ -11,7 +11,10 @@ MODAL_CHARS = {
     "h": "═", "v": "║", "cross": "╬", "t_down": "╦", "t_up": "╩",
     "t_right": "╠", "t_left": "╣",
 }
-SECTION_BOX_CHARS = {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│"}
+SECTION_BOX_CHARS = {
+    "tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│",
+    "t_right": "├", "t_left": "┤",
+}
 
 
 def truncate(text: str, width: int) -> str:
@@ -97,6 +100,18 @@ def _section_top_border(title: str, width: int) -> str:
     return prefix + c["h"] * (width - len(prefix) - 1) + c["tr"]
 
 
+def _section_divider_border(title: str, width: int) -> str:
+    """A shared border line joining one section's bottom edge to the next
+    section's top edge, with the next section's title embedded exactly as
+    `_section_top_border` does, but using T-junction connectors (`├`/`┤`)
+    instead of corners so the two boxes read as one continuous panel."""
+    c = SECTION_BOX_CHARS
+    prefix = f"{c['t_right']}{c['h']} {title} "
+    if len(prefix) + 1 >= width:
+        return truncate(prefix, max(0, width - 1)) + c["t_left"]
+    return prefix + c["h"] * (width - len(prefix) - 1) + c["t_left"]
+
+
 def _section_bottom_border(width: int) -> str:
     c = SECTION_BOX_CHARS
     return c["bl"] + c["h"] * max(0, width - 2) + c["br"]
@@ -137,13 +152,17 @@ def _split_into_sections(rows: list[DisplayRow]) -> list[tuple[str, list[tuple[i
 def _build_section_lines(
     rows: list[DisplayRow], highlighted_index: int, width: int
 ) -> tuple[list[tuple[str, int]], dict[int, int], dict[int, int]]:
-    """Renders `rows` as one box per section: a top border with the
-    section's title embedded, one bordered line per row (name_width scoped
-    to that section's own field/reference rows), a bottom border, and a
-    blank line before the next section. Returns the rendered (text, attr)
-    lines, a row-index -> line-index map, and a row-index -> line-index map
-    for rows that are the first row of their section (pointing at that
-    section's own top-border line, so scrolling to a section's first row can
+    """Renders `rows` as one continuous multi-compartment panel: the first
+    section opens with a top border (`┌...┐`) with its title embedded, each
+    later section's boundary is a single shared divider line (`├...┤`) with
+    that section's title embedded — replacing what would otherwise be a
+    separate bottom border, blank line, and top border — and the last
+    section closes with a bottom border (`└...┘`). Each section's own rows
+    render as one bordered line each (name_width scoped to that section's
+    own field/reference rows). Returns the rendered (text, attr) lines, a
+    row-index -> line-index map, and a row-index -> line-index map for rows
+    that are the first row of their section (pointing at that section's own
+    top/divider border line, so scrolling to a section's first row can
     reveal its border too)."""
     sections = _split_into_sections(rows)
     lines: list[tuple[str, int]] = []
@@ -151,7 +170,8 @@ def _build_section_lines(
     section_top_line_index: dict[int, int] = {}
     for section_i, (title, body) in enumerate(sections):
         top_line = len(lines)
-        lines.append((_section_top_border(title, width), curses.A_BOLD))
+        border = _section_top_border(title, width) if section_i == 0 else _section_divider_border(title, width)
+        lines.append((border, curses.A_BOLD))
         two_col = [r for _, r in body if r.kind in ("field", "reference")]
         name_width = max((len(r.name) for r in two_col), default=0)
         for row_i, (index, row) in enumerate(body):
@@ -164,17 +184,16 @@ def _build_section_lines(
             else:
                 text = _full_width_text(row)
             lines.append(_section_body_line(text, width, attr))
-        lines.append((_section_bottom_border(width), 0))
-        if section_i < len(sections) - 1:
-            lines.append((" " * width, 0))
+        if section_i == len(sections) - 1:
+            lines.append((_section_bottom_border(width), 0))
     return lines, row_line_index, section_top_line_index
 
 
 def content_fits(rows: list[DisplayRow], screen) -> bool:
     """True if every rendered line for `rows` (including box borders and the
-    blank lines between sections) fits within the screen's current usable
-    body height (below TOP_RESERVED_ROWS, above the help bar) without
-    needing to scroll."""
+    shared divider lines between sections) fits within the screen's current
+    usable body height (below TOP_RESERVED_ROWS, above the help bar)
+    without needing to scroll."""
     max_height, max_width = screen.getmaxyx()
     max_height = _usable_height(screen)
     visible_height = max(0, max_height - TOP_RESERVED_ROWS)
@@ -188,12 +207,16 @@ def draw_panel(
     highlighted_index: int,
     scroll_offset: int,
 ) -> None:
-    """Draws each section (as split by "section"-kind rows) in its own
-    single-line box, full terminal width, starting at TOP_RESERVED_ROWS,
-    with the section's title embedded in its top border and one blank line
-    between boxes. The first section's own title carries whatever text its
-    row holds (e.g. the table name, for the Fields section) — there is no
-    separate header line above the boxes. "field"/"reference" rows print as
+    """Draws each section (as split by "section"-kind rows) as one
+    continuous multi-compartment panel, full terminal width, starting at
+    TOP_RESERVED_ROWS: the first section opens with its own top border, each
+    later section's boundary is a single shared divider line joining the
+    previous box's bottom edge to this one's top edge (no blank line
+    between them), and the last section closes with a bottom border. Each
+    border/divider embeds its own section's title. The first section's
+    title carries whatever text its row holds (e.g. the table name, for the
+    Fields section) — there is no separate header line above the boxes.
+    "field"/"reference" rows print as
     `name` left-padded to the widest name in that section, two spaces, then
     `value`; "group"/"related" rows print their full-width text in the
     plain attribute. The row at `highlighted_index` is reverse-videoed within
