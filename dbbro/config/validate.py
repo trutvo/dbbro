@@ -1,3 +1,4 @@
+import string
 from types import MappingProxyType
 
 from .errors import ConfigIssue, ConfigValidationError
@@ -45,6 +46,25 @@ def validate_tables(raw: dict) -> list[ConfigIssue]:
                         message="search column is not a declared column",
                     )
                 )
+
+        repr_format = table_def.get("repr")
+        if repr_format is not None:
+            try:
+                fields = list(string.Formatter().parse(repr_format))
+            except ValueError:
+                issues.append(
+                    ConfigIssue(table=name, message="repr is not a valid format string")
+                )
+            else:
+                for _, field_name, _, _ in fields:
+                    if field_name is not None and field_name not in columns:
+                        issues.append(
+                            ConfigIssue(
+                                table=name,
+                                column=field_name,
+                                message="repr placeholder is not a declared column",
+                            )
+                        )
 
     return issues
 
@@ -116,6 +136,7 @@ def _build_config(raw: dict) -> Config:
             primary_key=table_def.get("primary_key"),
             search_columns=tuple(table_def.get("search_columns") or []),
             relations=relations,
+            repr=table_def.get("repr"),
         )
     return Config(tables=MappingProxyType(tables))
 

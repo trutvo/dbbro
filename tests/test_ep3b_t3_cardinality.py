@@ -5,7 +5,7 @@ import pytest
 
 from dbbro.config.models import Config, Relation, Table
 from dbbro.ui.fields import build_fields
-from dbbro.ui.relation_rows import build_display_rows
+from dbbro.ui.relation_rows import DisplayRow, build_display_rows
 
 
 @pytest.fixture
@@ -43,13 +43,17 @@ def conn_with_shops():
 
 
 def test_zero_matches_produce_no_continuation_rows(membership_shop_config, conn_with_shops):
+    # With zero matches, the relation contributes no REFERENCED BY section,
+    # group header, or related rows - but the id column itself still shows
+    # as a plain field, same as any other column.
     table = membership_shop_config.tables["Membership"]
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     assert rows == [
-        ("id", "123456"),
-        ("creationDate", "2025-11-05 00:39:34"),
+        DisplayRow("", "  Membership", "section"),
+        DisplayRow("    id", "123456", "field"),
+        DisplayRow("    creationDate", "2025-11-05 00:39:34", "field"),
     ]
 
 
@@ -63,7 +67,10 @@ def test_single_match_produces_exactly_one_continuation_row(membership_shop_conf
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     assert rows == [
-        ("id", "123456"),
-        ("", "=> Shop[1001]"),
-        ("creationDate", "2025-11-05 00:39:34"),
+        DisplayRow("", "  Membership", "section"),
+        DisplayRow("    id", "123456", "field"),
+        DisplayRow("    creationDate", "2025-11-05 00:39:34", "field"),
+        DisplayRow("", "  referenced by", "section"),
+        DisplayRow("", "    primeMembership_id (1)", "group"),
+        DisplayRow("", "      Shop[1]", "related"),
     ]

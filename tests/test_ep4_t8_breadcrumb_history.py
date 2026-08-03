@@ -61,7 +61,10 @@ def test_opening_related_entity_row_extends_breadcrumb_like_existing_flow(
     table = membership_shop_config.tables["Membership"]
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     view = TableView(table, record, conn_with_two_shops, membership_shop_config, breadcrumb)
-    view.selected = 2  # second Shop continuation row
+    # rows = [section FIELDS(0), field id(1), field creationDate(2),
+    # section REFERENCED BY(3), group header(4), related shop1(5),
+    # related shop2(6)].
+    view.selected = 6  # second Shop related row
 
     view.handle_key(keys.RETURN)
 
@@ -79,7 +82,7 @@ def test_opening_related_entity_row_records_history_entry_like_existing_flow(
     view = TableView(
         table, record, conn_with_two_shops, membership_shop_config, Breadcrumb(), history=history
     )
-    view.selected = 1  # first Shop continuation row
+    view.selected = 5  # first Shop related row
 
     transition = view.handle_key(keys.RETURN)
 

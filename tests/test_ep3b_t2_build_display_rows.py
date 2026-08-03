@@ -5,7 +5,7 @@ import pytest
 
 from dbbro.config.models import Config, Relation, Table
 from dbbro.ui.fields import build_fields
-from dbbro.ui.relation_rows import build_display_rows
+from dbbro.ui.relation_rows import DisplayRow, build_display_rows
 
 
 @pytest.fixture
@@ -47,16 +47,25 @@ def test_plain_column_produces_one_row_unchanged(membership_shop_config, conn_wi
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    creation_rows = [r for r in rows if r[0] == "creationDate"]
-    assert creation_rows == [("creationDate", "2025-11-05 00:39:34")]
+    creation_rows = [r for r in rows if r.name.strip() == "creationDate"]
+    assert creation_rows == [DisplayRow("    creationDate", "2025-11-05 00:39:34", "field")]
 
 
-def test_relation_column_first_row_shows_raw_local_value(membership_shop_config, conn_with_shops):
+def test_relation_column_with_no_matches_produces_no_referenced_by_section(
+    membership_shop_config, conn_with_shops
+):
+    # No Shop rows are inserted, so the "id" relation column has zero
+    # matches: per the "sections/groups with zero rows are omitted
+    # entirely" rule, no REFERENCED BY section appears - but "id" still
+    # shows as a plain field, same as any other column.
     table = membership_shop_config.tables["Membership"]
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    assert rows[0] == ("id", "123456")
+    assert not any(r.value == "referenced by" for r in rows)
+    assert rows[0] == DisplayRow("", "  Membership", "section")
+    assert rows[1] == DisplayRow("    id", "123456", "field")
+    assert rows[2] == DisplayRow("    creationDate", "2025-11-05 00:39:34", "field")
 
 
 def test_relation_column_appends_one_row_per_matched_related_entity(
@@ -76,12 +85,17 @@ def test_relation_column_appends_one_row_per_matched_related_entity(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    continuation_rows = [r for r in rows if r[0] == ""]
-    assert continuation_rows == [
-        ("", "=> Shop[1001]"),
-        ("", "=> Shop[1002]"),
-        ("", "=> Shop[1003]"),
+    # Related rows are the "related"-kind rows inside the REFERENCED BY
+    # section, one per matched Shop, rendered via format_record. Shop has
+    # no `repr` configured, so it falls back to its primary key value.
+    related_rows = [r for r in rows if r.kind == "related"]
+    assert related_rows == [
+        DisplayRow("", "      Shop[1]", "related"),
+        DisplayRow("", "      Shop[2]", "related"),
+        DisplayRow("", "      Shop[3]", "related"),
     ]
+    group_rows = [r for r in rows if r.kind == "group"]
+    assert group_rows == [DisplayRow("", "    primeMembership_id (3)", "group")]
 
 
 def test_continuation_rows_use_empty_column_name(membership_shop_config, conn_with_shops):
@@ -93,7 +107,12 @@ def test_continuation_rows_use_empty_column_name(membership_shop_config, conn_wi
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    assert rows[1] == ("", "=> Shop[1001]")
+    related_rows = [r for r in rows if r.kind == "related"]
+    assert related_rows == [
+        DisplayRow("", "      Shop[1]", "related")
+    ]
+    group_rows = [r for r in rows if r.kind == "group"]
+    assert group_rows == [DisplayRow("", "    primeMembership_id (1)", "group")]
 
 
 def test_row_targets_are_parallel_to_rows(membership_shop_config, conn_with_shops):
@@ -109,5 +128,8 @@ def test_row_targets_are_parallel_to_rows(membership_shop_config, conn_with_shop
     fields = build_fields(table, record)
     rows, row_targets = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     assert len(row_targets) == len(rows)
-    assert rows[3] == ("creationDate", "2025-11-05 00:39:34")
-    assert row_targets[3] is None
+    creation_index = next(i for i, r in enumerate(rows) if r.name.strip() == "creationDate")
+    assert rows[creation_index] == DisplayRow(
+        "    creationDate", "2025-11-05 00:39:34", "field"
+    )
+    assert row_targets[creation_index] is None

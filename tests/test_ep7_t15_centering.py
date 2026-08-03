@@ -1,5 +1,6 @@
 from dbbro.ui.screen import TOP_RESERVED_ROWS, draw_modal, draw_panel
 from tests.stub_screen import StubScreen
+from dbbro.ui.relation_rows import DisplayRow
 
 
 def _bounds(screen):
@@ -24,9 +25,9 @@ def test_draw_modal_is_centered_horizontally_and_vertically():
 
 def test_draw_panel_fills_the_screen_anchored_top_left():
     screen = StubScreen(height=40, width=100)
-    rows = [("id", "1"), ("name", "Acme")]
+    rows = [DisplayRow("id", "1", "field"), DisplayRow("name", "Acme", "field")]
 
-    draw_panel(screen, "Company", rows, highlighted_index=0, scroll_offset=0)
+    draw_panel(screen, rows, highlighted_index=0, scroll_offset=0)
 
     min_y, max_y, min_x, max_x = _bounds(screen)
     # The panel is anchored at row TOP_RESERVED_ROWS, col 0 (flush against
@@ -34,8 +35,11 @@ def test_draw_panel_fills_the_screen_anchored_top_left():
     assert min_y == TOP_RESERVED_ROWS
     assert min_x == 0
     assert max_x == 100
-    # The bottom border reaches the row above the EP-2 help bar.
-    assert max_y == 40 - 2
+    # There's no padding to fill unused space beyond the section's own
+    # box: the panel stops after the section's top border, the top margin
+    # line, the data rows, the bottom margin line, and the section's
+    # bottom border (no separate header line anymore).
+    assert max_y == TOP_RESERVED_ROWS + 1 + len(rows) + 1 + 1
 
 
 def test_oversized_box_clamps_horizontally_instead_of_negative_position():

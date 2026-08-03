@@ -6,7 +6,7 @@ from . import keys
 from .fields import build_fields
 from .help_bar import MOVE_KEY, HelpKey
 from .relation_rows import LocalColumnTarget, RelatedEntityTarget, RowTarget, build_display_rows
-from .screen import draw_panel
+from .screen import content_fits, draw_panel
 from .view_stack import Transition
 
 DEFAULT_VISIBLE_HEIGHT = 20
@@ -39,16 +39,35 @@ class TableView:
         self.rows, self.row_targets = build_display_rows(
             self.fields, table, config, conn
         )
-        self.selected = 0
+        self.selected = self._first_selectable()
         self.scroll_offset = 0
 
+    def _first_selectable(self) -> int:
+        for i, row in enumerate(self.rows):
+            if row.selectable:
+                return i
+        return 0
+
+    def _next_selectable(self, start: int, direction: int) -> int:
+        n = len(self.rows)
+        i = start
+        for _ in range(n):
+            i = (i + direction) % n
+            if self.rows[i].selectable:
+                return i
+        return start
+
     def render(self, screen) -> None:
+        # If everything already fits within the screen's current usable
+        # height, never scroll, regardless of self.scroll_offset (which is
+        # tracked against a fixed visible_height, not the real terminal
+        # size).
+        scroll_offset = 0 if content_fits(self.rows, screen) else self.scroll_offset
         draw_panel(
             screen,
-            self.table.name,
             self.rows,
             highlighted_index=self.selected,
-            scroll_offset=self.scroll_offset,
+            scroll_offset=scroll_offset,
         )
 
     def help_keys(self) -> list[HelpKey]:
@@ -70,11 +89,11 @@ class TableView:
 
     def handle_key(self, key: int) -> Transition | None:
         if key == keys.DOWN:
-            self.selected = (self.selected + 1) % len(self.rows)
+            self.selected = self._next_selectable(self.selected, 1)
             self._update_scroll()
             return None
         if key == keys.UP:
-            self.selected = (self.selected - 1) % len(self.rows)
+            self.selected = self._next_selectable(self.selected, -1)
             self._update_scroll()
             return None
         if key in keys.RETURN_ALTERNATES:

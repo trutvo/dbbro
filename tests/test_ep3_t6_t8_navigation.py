@@ -49,12 +49,19 @@ def _employee_view(nav_conn, nav_config, breadcrumb=None):
     )
 
 
+# Employee's rows, given nav_config: company_id is an outbound reference
+# (its local_column "company_id" != Employee's primary key "id"), so the
+# layout is [section FIELDS(0), field id(1), field name(2),
+# section REFERENCES(3), reference company_id(4)].
+COMPANY_ID_ROW_INDEX = 4
+
+
 def test_return_on_relation_field_with_one_match_displays_new_table_view_with_first_field_selected(
     nav_conn, nav_config
 ):
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme')")
     view = _employee_view(nav_conn, nav_config)
-    view.selected = 2  # company_id, the relation field
+    view.selected = COMPANY_ID_ROW_INDEX  # company_id, the relation field
 
     transition = view.handle_key(keys.RETURN)
 
@@ -62,14 +69,17 @@ def test_return_on_relation_field_with_one_match_displays_new_table_view_with_fi
     assert isinstance(new_view, TableView)
     assert new_view.table.name == "Company"
     assert new_view.record == {"id": "42", "name": "Acme"}
-    assert new_view.selected == 0
+    # Company has no relations of its own, so its rows are just
+    # [section FIELDS, field id, field name]; the first selectable row
+    # (index 1, "id") is selected, not index 0 (the section header).
+    assert new_view.selected == 1
 
 
 def test_return_on_relation_field_with_one_match_extends_breadcrumb(nav_conn, nav_config):
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme')")
     breadcrumb = Breadcrumb()
     view = _employee_view(nav_conn, nav_config, breadcrumb=breadcrumb)
-    view.selected = 2
+    view.selected = COMPANY_ID_ROW_INDEX
 
     view.handle_key(keys.RETURN)
 
@@ -82,14 +92,14 @@ def test_return_on_relation_field_with_zero_matches_does_nothing(
     nav_conn, nav_config
 ):
     view = _employee_view(nav_conn, nav_config)
-    view.selected = 2
+    view.selected = COMPANY_ID_ROW_INDEX
 
     assert view.handle_key(keys.RETURN) is None
 
 
 def test_return_on_non_relation_field_does_nothing(nav_conn, nav_config):
     view = _employee_view(nav_conn, nav_config)
-    view.selected = 1  # name, not a relation
+    view.selected = 2  # name, not a relation
 
     transition = view.handle_key(keys.RETURN)
 
@@ -102,21 +112,67 @@ def test_enter_on_local_column_with_multiple_matches_does_not_open_selection_lis
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme One')")
     nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme Two')")
     view = _employee_view(nav_conn, nav_config)
-    view.selected = 2  # company_id, the local column row
+    view.selected = COMPANY_ID_ROW_INDEX  # company_id, the local column row
 
     assert view.handle_key(keys.RETURN) is None
 
 
-def test_enter_on_a_specific_related_entity_row_opens_it_directly(nav_conn, nav_config):
-    nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme One')")
-    nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme Two')")
-    view = _employee_view(nav_conn, nav_config)
-    view.selected = 3  # first related-entity row beneath company_id
+# --- Inbound relation fixtures, for testing that a specific "related"
+# row (kind="related", under a Referenced By group) opens its own record
+# directly even when its group has multiple entries - unlike an outbound
+# Reference row with multiple ambiguous matches, which refuses to open. ---
+
+
+@pytest.fixture
+def inbound_nav_config():
+    company = Table(name="Company", columns=("id", "name", "employee_id"), primary_key="id")
+    employee = Table(
+        name="Employee",
+        columns=("id", "name"),
+        primary_key="id",
+        relations=(
+            Relation(
+                target_table="Company",
+                local_column="id",
+                foreign_column="employee_id",
+            ),
+        ),
+    )
+    return Config(tables=MappingProxyType({"Company": company, "Employee": employee}))
+
+
+@pytest.fixture
+def inbound_nav_conn():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE Company (id TEXT, name TEXT, employee_id TEXT)")
+    yield conn
+    conn.close()
+
+
+def test_enter_on_a_specific_related_entity_row_opens_it_directly(
+    inbound_nav_conn, inbound_nav_config
+):
+    inbound_nav_conn.execute("INSERT INTO Company VALUES ('42', 'Acme One', '1')")
+    inbound_nav_conn.execute("INSERT INTO Company VALUES ('43', 'Acme Two', '1')")
+    record = {"id": "1", "name": "Alice"}
+    view = TableView(
+        inbound_nav_config.tables["Employee"],
+        record,
+        inbound_nav_conn,
+        inbound_nav_config,
+        Breadcrumb(),
+    )
+    # "id" is Employee's own primary key and its own relation's
+    # local_column, so besides the plain field row it also drives a
+    # Referenced By group. rows = [section FIELDS(0), field id(1),
+    # field name(2), section REFERENCED BY(3), group header(4),
+    # related "Acme One"(5), related "Acme Two"(6)].
+    view.selected = 5  # the first related-entity row beneath the group header
 
     transition = view.handle_key(keys.RETURN)
 
     new_view = transition.view
     assert isinstance(new_view, TableView)
     assert new_view.table.name == "Company"
-    assert new_view.record == {"id": "42", "name": "Acme One"}
-    assert new_view.selected == 0
+    assert new_view.record == {"id": "42", "name": "Acme One", "employee_id": "1"}
+    assert new_view.selected == 1

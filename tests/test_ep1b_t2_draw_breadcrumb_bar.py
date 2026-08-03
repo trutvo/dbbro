@@ -6,6 +6,7 @@ from dbbro.ui.screen import (
     draw_panel,
 )
 from tests.stub_screen import StubScreen
+from dbbro.ui.relation_rows import DisplayRow
 
 
 def test_writes_breadcrumb_line_at_row_zero():
@@ -21,7 +22,7 @@ def test_writes_breadcrumb_line_at_row_zero():
 def test_draw_panel_reserves_top_two_rows():
     screen = StubScreen()
 
-    draw_panel(screen, "Company", [("id", "1")], highlighted_index=0, scroll_offset=0)
+    draw_panel(screen, [DisplayRow("id", "1", "field")], highlighted_index=0, scroll_offset=0)
 
     rows = [c[0] for c in screen.calls if isinstance(c, tuple)]
     assert all(r >= TOP_RESERVED_ROWS for r in rows)

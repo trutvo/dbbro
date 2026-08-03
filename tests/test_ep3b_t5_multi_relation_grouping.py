@@ -5,7 +5,7 @@ import pytest
 
 from dbbro.config.models import Config, Relation, Table
 from dbbro.ui.fields import build_fields
-from dbbro.ui.relation_rows import build_display_rows
+from dbbro.ui.relation_rows import DisplayRow, build_display_rows
 
 
 @pytest.fixture
@@ -67,8 +67,10 @@ def test_two_relations_on_same_local_column_both_produce_rows(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
-    assert ("", "=> Shop[1001]") in rows
-    assert ("", "=> Orders[ORD1]") in rows
+    # Related rows are rendered via format_record; neither Shop nor Orders
+    # has a `repr` configured, so both fall back to their primary key value.
+    assert DisplayRow("", "      Shop[1]", "related") in rows
+    assert DisplayRow("", "      Orders[1]", "related") in rows
 
 
 def test_relation_groups_appear_in_table_relations_order(
@@ -82,9 +84,11 @@ def test_relation_groups_appear_in_table_relations_order(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
-    shop_index = rows.index(("", "=> Shop[1001]"))
-    order_index = rows.index(("", "=> Orders[ORD1]"))
-    assert shop_index < order_index
+    # Groups appear in table.relations declaration order: Shop before
+    # Orders.
+    shop_group_index = rows.index(DisplayRow("", "    primeMembership_id (1)", "group"))
+    order_group_index = rows.index(DisplayRow("", "    membership_id (1)", "group"))
+    assert shop_group_index < order_group_index
 
 
 def test_relations_by_local_column_dict_limitation_does_not_drop_a_relation(
@@ -98,5 +102,5 @@ def test_relations_by_local_column_dict_limitation_does_not_drop_a_relation(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
-    continuation_rows = [r for r in rows if r[0] == ""]
-    assert len(continuation_rows) == 2
+    related_rows = [r for r in rows if r.kind == "related"]
+    assert len(related_rows) == 2

@@ -41,7 +41,10 @@ def test_table_view_includes_open_when_relation_field_selected():
     conn.execute("INSERT INTO Shop VALUES ('5')")
     conn.commit()
     view = TableView(table, {"id": 1, "shop_id": 5}, conn=conn, config=config, breadcrumb=None)
-    view.selected = 1  # the shop_id / RelationField
+    # rows = [section FIELDS(0), field id(1), section REFERENCES(2),
+    # reference shop_id(3)] - shop_id is an outbound reference since it's
+    # not the Company table's own primary key.
+    view.selected = 3  # the shop_id / RelationField reference row
 
     labels = _labels(view.help_keys())
 

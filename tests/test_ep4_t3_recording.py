@@ -67,7 +67,9 @@ def test_add_entry_called_on_relation_follow_display(rel_conn, rel_config):
         rel_config.tables["Employee"], record, rel_conn, rel_config, breadcrumb, history
     )
     history.add_entry(view)
-    view.selected = 2  # company_id, the relation field
+    # rows = [section FIELDS(0), field id(1), field name(2),
+    # section REFERENCES(3), reference company_id(4)].
+    view.selected = 4  # company_id, the relation field
 
     view.handle_key(13)  # Return -> follows relation
 

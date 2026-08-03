@@ -57,7 +57,10 @@ def test_enter_on_related_entity_row_pushes_that_records_table_view(
     conn.execute("INSERT INTO Shop VALUES (?, ?, ?, ?)", ("2", "1002", "ShopB", "123456"))
     conn.commit()
     view = _view(membership_shop_config, conn)
-    view.selected = 2  # second Shop continuation row
+    # rows = [section FIELDS(0), field id(1), field creationDate(2),
+    # section REFERENCED BY(3), group header(4), related shop1(5),
+    # related shop2(6)].
+    view.selected = 6  # second Shop related row
 
     transition = view.handle_key(keys.RETURN)
 
@@ -77,31 +80,64 @@ def test_enter_on_related_entity_row_never_shows_a_selection_list(
     conn.execute("INSERT INTO Shop VALUES (?, ?, ?, ?)", ("1", "1001", "ShopA", "123456"))
     conn.commit()
     view = _view(membership_shop_config, conn)
-    view.selected = 1
+    # rows = [section FIELDS(0), field id(1), field creationDate(2),
+    # section REFERENCED BY(3), group header(4), related shop1(5)].
+    view.selected = 5
 
     transition = view.handle_key(keys.RETURN)
 
     assert not isinstance(transition.view, SelectionList)
 
 
-def test_enter_on_local_column_with_exactly_one_match_opens_directly(
-    membership_shop_config, conn
-):
-    conn.execute("INSERT INTO Shop VALUES (?, ?, ?, ?)", ("1", "1001", "ShopA", "123456"))
-    conn.commit()
-    view = _view(membership_shop_config, conn)
-    view.selected = 0  # local column ("id") row
+def test_enter_on_local_column_with_exactly_one_match_opens_directly():
+    # This covers an *outbound* reference (this record holds the FK):
+    # selecting a Reference row whose LocalColumnTarget has exactly one
+    # match opens it directly.
+    order = Table(
+        name="Order",
+        columns=("id", "categoryRef"),
+        primary_key="id",
+        search_columns=(),
+        relations=(
+            Relation(
+                target_table="Category",
+                local_column="categoryRef",
+                foreign_column="code",
+            ),
+        ),
+    )
+    category = Table(
+        name="Category",
+        columns=("id", "code", "name"),
+        primary_key="id",
+        search_columns=("name",),
+    )
+    config = Config(tables=MappingProxyType({"Order": order, "Category": category}))
+    order_conn = sqlite3.connect(":memory:")
+    order_conn.execute("CREATE TABLE Category (id TEXT, code TEXT, name TEXT)")
+    order_conn.execute("INSERT INTO Category VALUES ('1', 'XYZ', 'CategoryA')")
+    order_conn.commit()
+
+    record = {"id": "99", "categoryRef": "XYZ"}
+    view = TableView(order, record, order_conn, config, Breadcrumb())
+    # rows = [section FIELDS(0), section REFERENCES(1),
+    # reference categoryRef(2)].
+    reference_index = next(
+        i for i, r in enumerate(view.rows) if r.name.strip() == "categoryRef"
+    )
+    view.selected = reference_index
 
     transition = view.handle_key(keys.RETURN)
 
     assert isinstance(transition.view, TableView)
-    assert transition.view.table.name == "Shop"
+    assert transition.view.table.name == "Category"
     assert transition.view.record["id"] == "1"
+    order_conn.close()
 
 
 def test_enter_on_non_relation_row_does_nothing(membership_shop_config, conn):
     view = _view(membership_shop_config, conn)
-    view.selected = 1  # creationDate, not a relation
+    view.selected = 2  # creationDate, not a relation
 
     transition = view.handle_key(keys.RETURN)
 

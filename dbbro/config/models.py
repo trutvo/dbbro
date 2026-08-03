@@ -16,6 +16,7 @@ class Table:
     primary_key: str
     search_columns: tuple[str, ...] = ()
     relations: tuple[Relation, ...] = ()
+    repr: str | None = None
 
 
 @dataclass(frozen=True)
