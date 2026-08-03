@@ -111,10 +111,10 @@ def test_draw_panel_does_not_pad_short_row_lists_with_blank_rows():
     reverse_calls = [c for c in screen.calls if isinstance(c, tuple) and c[3] & curses.A_REVERSE]
     assert len(reverse_calls) == 1
 
-    # Only the row's box (top border + body + bottom border) is drawn;
-    # nothing fills the remaining unused space down to the help bar, and
-    # there is no separate header line above it.
+    # Only the row's box (top border + top margin + body + bottom margin +
+    # bottom border) is drawn; nothing fills the remaining unused space down
+    # to the help bar, and there is no separate header line above it.
     calls = [c for c in screen.calls if isinstance(c, tuple)]
-    assert len(calls) == 3  # top border + one data row + bottom border
+    assert len(calls) == 5  # top border + top margin + one data row + bottom margin + bottom border
     max_y = max(c[0] for c in calls)
-    assert max_y == TOP_RESERVED_ROWS + 2  # top border + data row + bottom border
+    assert max_y == TOP_RESERVED_ROWS + 4  # top border + top margin + data row + bottom margin + bottom border

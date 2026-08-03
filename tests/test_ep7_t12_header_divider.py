@@ -25,17 +25,17 @@ def test_header_row_and_body_rows_all_span_the_same_width():
     assert len(top_border_row) == len(body_row) == screen._width
 
 
-def test_body_rows_start_immediately_after_the_section_top_border():
+def test_body_rows_start_after_one_blank_margin_line_below_the_section_top_border():
     screen = StubScreen(width=200)
     rows = [DisplayRow("id", "1", "field"), DisplayRow("name", "Acme", "field")]
 
     draw_panel(screen, rows, highlighted_index=0, scroll_offset=0)
 
     all_rows = sorted(c for c in screen.calls if isinstance(c, tuple))
-    # section top border, one call per data row, section bottom border --
-    # no header line and no blank divider row since there's only one
-    # section.
-    assert len(all_rows) == 1 + len(rows) + 1
+    # section top border, one blank top-margin line, one call per data row,
+    # one blank bottom-margin line, section bottom border -- no header line
+    # since there's only one section.
+    assert len(all_rows) == 1 + 1 + len(rows) + 1 + 1
     ys = [c[0] for c in all_rows]
     assert ys == sorted(ys)
     # The panel's very first drawn line is the section's top border,

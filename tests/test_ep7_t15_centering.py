@@ -36,9 +36,10 @@ def test_draw_panel_fills_the_screen_anchored_top_left():
     assert min_x == 0
     assert max_x == 100
     # There's no padding to fill unused space beyond the section's own
-    # box: the panel stops after the section's top border, the data rows,
-    # and the section's bottom border (no separate header line anymore).
-    assert max_y == TOP_RESERVED_ROWS + len(rows) + 1
+    # box: the panel stops after the section's top border, the top margin
+    # line, the data rows, the bottom margin line, and the section's
+    # bottom border (no separate header line anymore).
+    assert max_y == TOP_RESERVED_ROWS + 1 + len(rows) + 1 + 1
 
 
 def test_oversized_box_clamps_horizontally_instead_of_negative_position():

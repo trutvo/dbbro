@@ -24,12 +24,11 @@ def test_value_column_starts_in_the_same_position_across_all_rows():
 
     draw_panel(screen, rows, highlighted_index=0, scroll_offset=0)
 
-    # Data rows are whichever rows were drawn 2nd through (2+len(rows))th,
-    # counting from wherever the panel actually starts (there's the
-    # section's top border, with no header line above it, before the data
-    # rows begin).
+    # Data rows are drawn after the section's top border and the one
+    # blank bordered margin line inserted below it, counting from
+    # wherever the panel actually starts.
     all_rows = sorted(call for call in screen.calls if isinstance(call, tuple))
-    data_lines = [call[2] for call in all_rows[1 : 1 + len(rows)]]
+    data_lines = [call[2] for call in all_rows[2 : 2 + len(rows)]]
     name_width = max(len(r.name) for r in rows)
     value_start = name_width + 2  # name column width plus the two-space gap
     for row, line in zip(rows, data_lines):

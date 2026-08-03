@@ -157,9 +157,13 @@ def _build_section_lines(
     later section's boundary is a single shared divider line (`├...┤`) with
     that section's title embedded — replacing what would otherwise be a
     separate bottom border, blank line, and top border — and the last
-    section closes with a bottom border (`└...┘`). Each section's own rows
-    render as one bordered line each (name_width scoped to that section's
-    own field/reference rows). Returns the rendered (text, attr) lines, a
+    section closes with a bottom border (`└...┘`). Each non-empty section
+    gets one bordered blank line immediately after its own top/divider
+    border (top margin, before its first content row) and one more
+    immediately before its closing border/divider (bottom margin, after its
+    last content row). Each section's own rows render as one bordered line
+    each (name_width scoped to that section's own field/reference rows).
+    Returns the rendered (text, attr) lines, a
     row-index -> line-index map, and a row-index -> line-index map for rows
     that are the first row of their section (pointing at that section's own
     top/divider border line, so scrolling to a section's first row can
@@ -172,6 +176,8 @@ def _build_section_lines(
         top_line = len(lines)
         border = _section_top_border(title, width) if section_i == 0 else _section_divider_border(title, width)
         lines.append((border, curses.A_BOLD))
+        if body:
+            lines.append(_section_body_line("", width, 0))
         two_col = [r for _, r in body if r.kind in ("field", "reference")]
         name_width = max((len(r.name) for r in two_col), default=0)
         for row_i, (index, row) in enumerate(body):
@@ -184,6 +190,8 @@ def _build_section_lines(
             else:
                 text = _full_width_text(row)
             lines.append(_section_body_line(text, width, attr))
+        if body:
+            lines.append(_section_body_line("", width, 0))
         if section_i == len(sections) - 1:
             lines.append((_section_bottom_border(width), 0))
     return lines, row_line_index, section_top_line_index
