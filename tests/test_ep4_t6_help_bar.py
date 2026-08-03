@@ -112,9 +112,9 @@ def test_help_shows_enter_open_for_related_entity_row(membership_shop_config):
     conn = _conn()
     _seed(conn, 1)
     view = _view(membership_shop_config, conn)
-    # rows = [section FIELDS(0), field creationDate(1),
-    # section REFERENCED BY(2), group header(3), related shop(4)].
-    view.selected = 4  # the Shop related row
+    # rows = [section FIELDS(0), field id(1), field creationDate(2),
+    # section REFERENCED BY(3), group header(4), related shop(5)].
+    view.selected = 5  # the Shop related row
 
     assert ("enter", "open") in _labels(view.help_keys())
 
@@ -151,6 +151,6 @@ def test_help_omits_enter_open_for_plain_field_row(membership_shop_config):
     conn = _conn()
     _seed(conn, 1)
     view = _view(membership_shop_config, conn)
-    view.selected = 1  # creationDate, not a relation
+    view.selected = 2  # creationDate, not a relation
 
     assert ("enter", "open") not in _labels(view.help_keys())

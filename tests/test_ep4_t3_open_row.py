@@ -57,10 +57,10 @@ def test_enter_on_related_entity_row_pushes_that_records_table_view(
     conn.execute("INSERT INTO Shop VALUES (?, ?, ?, ?)", ("2", "1002", "ShopB", "123456"))
     conn.commit()
     view = _view(membership_shop_config, conn)
-    # rows = [section FIELDS(0), field creationDate(1),
-    # section REFERENCED BY(2), group header(3), related shop1(4),
-    # related shop2(5)].
-    view.selected = 5  # second Shop related row
+    # rows = [section FIELDS(0), field id(1), field creationDate(2),
+    # section REFERENCED BY(3), group header(4), related shop1(5),
+    # related shop2(6)].
+    view.selected = 6  # second Shop related row
 
     transition = view.handle_key(keys.RETURN)
 
@@ -80,9 +80,9 @@ def test_enter_on_related_entity_row_never_shows_a_selection_list(
     conn.execute("INSERT INTO Shop VALUES (?, ?, ?, ?)", ("1", "1001", "ShopA", "123456"))
     conn.commit()
     view = _view(membership_shop_config, conn)
-    # rows = [section FIELDS(0), field creationDate(1),
-    # section REFERENCED BY(2), group header(3), related shop1(4)].
-    view.selected = 4
+    # rows = [section FIELDS(0), field id(1), field creationDate(2),
+    # section REFERENCED BY(3), group header(4), related shop1(5)].
+    view.selected = 5
 
     transition = view.handle_key(keys.RETURN)
 
@@ -90,12 +90,9 @@ def test_enter_on_related_entity_row_never_shows_a_selection_list(
 
 
 def test_enter_on_local_column_with_exactly_one_match_opens_directly():
-    # "id" is Membership's own primary key in membership_shop_config, so
-    # it's a Referenced By relation, not a Reference (LocalColumnTarget)
-    # row - there's no standalone row for it to select directly anymore.
-    # This test now covers the equivalent case for an *outbound*
-    # reference (this record holds the FK): selecting a Reference row
-    # whose LocalColumnTarget has exactly one match opens it directly.
+    # This covers an *outbound* reference (this record holds the FK):
+    # selecting a Reference row whose LocalColumnTarget has exactly one
+    # match opens it directly.
     order = Table(
         name="Order",
         columns=("id", "categoryRef"),
@@ -140,7 +137,7 @@ def test_enter_on_local_column_with_exactly_one_match_opens_directly():
 
 def test_enter_on_non_relation_row_does_nothing(membership_shop_config, conn):
     view = _view(membership_shop_config, conn)
-    view.selected = 1  # creationDate, not a relation
+    view.selected = 2  # creationDate, not a relation
 
     transition = view.handle_key(keys.RETURN)
 

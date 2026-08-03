@@ -163,11 +163,11 @@ def test_enter_on_a_specific_related_entity_row_opens_it_directly(
         Breadcrumb(),
     )
     # "id" is Employee's own primary key and its own relation's
-    # local_column, so it becomes purely a Referenced By group (no plain
-    # field row for it). rows = [section FIELDS(0), field name(1),
-    # section REFERENCED BY(2), group header(3), related "Acme One"(4),
-    # related "Acme Two"(5)].
-    view.selected = 4  # the first related-entity row beneath the group header
+    # local_column, so besides the plain field row it also drives a
+    # Referenced By group. rows = [section FIELDS(0), field id(1),
+    # field name(2), section REFERENCED BY(3), group header(4),
+    # related "Acme One"(5), related "Acme Two"(6)].
+    view.selected = 5  # the first related-entity row beneath the group header
 
     transition = view.handle_key(keys.RETURN)
 

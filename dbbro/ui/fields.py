@@ -17,10 +17,15 @@ class RelationField(Field):
 
 
 def build_fields(table: Table, row: dict[str, Any]) -> list[Field]:
-    """Build one Field/RelationField per column, in Table.columns order (NFR3)."""
+    """Build one Field/RelationField per column, in Table.columns order (NFR3),
+    with the table's "id" column always first even if columns omits it."""
     relations_by_local_column = {r.local_column: r for r in table.relations}
+    if "id" in table.columns or "id" not in row:
+        columns = table.columns
+    else:
+        columns = ("id", *table.columns)
     fields: list[Field] = []
-    for column in table.columns:
+    for column in columns:
         raw_value = row[column]
         relation = relations_by_local_column.get(column)
         if relation is None:

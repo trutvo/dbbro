@@ -67,13 +67,10 @@ def test_two_relations_on_same_local_column_both_produce_rows(
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
-    # Related rows now show every column of the target as "column=value"
-    # pairs (format_record) rather than the old "=> Table[value]" format.
-    assert (
-        DisplayRow("", "      id=1, tsId=1001, name=ShopA, primeMembership_id=123456", "related")
-        in rows
-    )
-    assert DisplayRow("", "      id=1, ref=ORD1, membership_id=123456", "related") in rows
+    # Related rows are rendered via format_record; neither Shop nor Orders
+    # has a `repr` configured, so both fall back to their primary key value.
+    assert DisplayRow("", "      Shop[1]", "related") in rows
+    assert DisplayRow("", "      Orders[1]", "related") in rows
 
 
 def test_relation_groups_appear_in_table_relations_order(
@@ -89,8 +86,8 @@ def test_relation_groups_appear_in_table_relations_order(
     rows, _ = build_display_rows(fields, table, multi_relation_config, conn)
     # Groups appear in table.relations declaration order: Shop before
     # Orders.
-    shop_group_index = rows.index(DisplayRow("", "    Shop.primeMembership_id (1)", "group"))
-    order_group_index = rows.index(DisplayRow("", "    Orders.membership_id (1)", "group"))
+    shop_group_index = rows.index(DisplayRow("", "    primeMembership_id (1)", "group"))
+    order_group_index = rows.index(DisplayRow("", "    membership_id (1)", "group"))
     assert shop_group_index < order_group_index
 
 

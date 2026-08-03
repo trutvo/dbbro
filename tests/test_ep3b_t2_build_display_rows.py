@@ -56,16 +56,16 @@ def test_relation_column_with_no_matches_produces_no_referenced_by_section(
 ):
     # No Shop rows are inserted, so the "id" relation column has zero
     # matches: per the "sections/groups with zero rows are omitted
-    # entirely" rule, no REFERENCED BY section (and no row for "id" at
-    # all) should appear - only the FIELDS section with creationDate.
+    # entirely" rule, no REFERENCED BY section appears - but "id" still
+    # shows as a plain field, same as any other column.
     table = membership_shop_config.tables["Membership"]
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     assert not any(r.value == "referenced by" for r in rows)
-    assert not any(r.name.strip() == "id" for r in rows)
     assert rows[0] == DisplayRow("", "  Membership", "section")
-    assert rows[1] == DisplayRow("    creationDate", "2025-11-05 00:39:34", "field")
+    assert rows[1] == DisplayRow("    id", "123456", "field")
+    assert rows[2] == DisplayRow("    creationDate", "2025-11-05 00:39:34", "field")
 
 
 def test_relation_column_appends_one_row_per_matched_related_entity(
@@ -86,16 +86,16 @@ def test_relation_column_appends_one_row_per_matched_related_entity(
     fields = build_fields(table, record)
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     # Related rows are the "related"-kind rows inside the REFERENCED BY
-    # section, one per matched Shop, showing every column of Shop as
-    # "column=value" pairs (format_record), not just its search columns.
+    # section, one per matched Shop, rendered via format_record. Shop has
+    # no `repr` configured, so it falls back to its primary key value.
     related_rows = [r for r in rows if r.kind == "related"]
     assert related_rows == [
-        DisplayRow("", "      id=1, tsId=1001, name=ShopA, primeMembership_id=123456", "related"),
-        DisplayRow("", "      id=2, tsId=1002, name=ShopB, primeMembership_id=123456", "related"),
-        DisplayRow("", "      id=3, tsId=1003, name=ShopC, primeMembership_id=123456", "related"),
+        DisplayRow("", "      Shop[1]", "related"),
+        DisplayRow("", "      Shop[2]", "related"),
+        DisplayRow("", "      Shop[3]", "related"),
     ]
     group_rows = [r for r in rows if r.kind == "group"]
-    assert group_rows == [DisplayRow("", "    Shop.primeMembership_id (3)", "group")]
+    assert group_rows == [DisplayRow("", "    primeMembership_id (3)", "group")]
 
 
 def test_continuation_rows_use_empty_column_name(membership_shop_config, conn_with_shops):
@@ -109,10 +109,10 @@ def test_continuation_rows_use_empty_column_name(membership_shop_config, conn_wi
     rows, _ = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
     related_rows = [r for r in rows if r.kind == "related"]
     assert related_rows == [
-        DisplayRow("", "      id=1, tsId=1001, name=ShopA, primeMembership_id=123456", "related")
+        DisplayRow("", "      Shop[1]", "related")
     ]
     group_rows = [r for r in rows if r.kind == "group"]
-    assert group_rows == [DisplayRow("", "    Shop.primeMembership_id (1)", "group")]
+    assert group_rows == [DisplayRow("", "    primeMembership_id (1)", "group")]
 
 
 def test_row_targets_are_parallel_to_rows(membership_shop_config, conn_with_shops):

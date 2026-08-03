@@ -41,9 +41,15 @@ class DisplayRow:
 
 
 def format_record(table: Table, record: dict[str, Any]) -> str:
-    """Renders every column of `table.columns`, in declared order, as
-    `column=value` pairs joined by ", "."""
-    return ", ".join(f"{column}={record[column]}" for column in table.columns)
+    """Renders `record` as `TableName[...]`, using `table.repr` as a template
+    if configured (missing/None values render as "None"), otherwise falling
+    back to just the primary key's value."""
+    if table.repr is not None:
+        values = {column: record.get(column) for column in table.columns}
+        inner = table.repr.format(**values)
+    else:
+        inner = str(record.get(table.primary_key))
+    return f"{table.name}[{inner}]"
 
 
 def build_display_rows(
@@ -89,21 +95,35 @@ def build_display_rows(
 
         if not is_referenced_by:
             first_relation = column_relations[0]
-            reference_rows.append(DisplayRow(INDENT * 2 + field.column, field.value, "reference"))
+            first_matches = matches_by_relation[0]
+            target_table = config.tables[first_relation.target_table]
+            reference_value = (
+                format_record(target_table, first_matches[0])
+                if first_matches
+                else field.value
+            )
+            reference_rows.append(
+                DisplayRow(INDENT * 2 + field.column, reference_value, "reference")
+            )
             reference_targets.append(
                 LocalColumnTarget(
                     target_table=first_relation.target_table,
-                    matches=tuple(matches_by_relation[0]),
+                    matches=tuple(first_matches),
                 )
             )
             continue
+
+        field_rows.append(
+            DisplayRow(INDENT * 2 + field.column, field.foreign_key_value, "field")
+        )
+        field_targets.append(None)
 
         for i, relation in enumerate(column_relations):
             target_table = config.tables[relation.target_table]
             matches = matches_by_relation[i]
             if not matches:
                 continue
-            label = f"{relation.target_table}.{relation.foreign_column}"
+            label = relation.foreign_column
             group_rows: list[DisplayRow] = []
             group_targets: list[RowTarget] = []
             for match in matches:

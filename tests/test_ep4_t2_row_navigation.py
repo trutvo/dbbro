@@ -58,23 +58,24 @@ def test_down_moves_through_every_row_including_continuation_rows(
     membership_shop_config, conn_with_three_shops
 ):
     view = _view(membership_shop_config, conn_with_three_shops)
-    # rows = [section FIELDS, field creationDate, section REFERENCED BY,
-    # group header, related shop0, related shop1, related shop2] - "id"
-    # is Membership's own primary key/relation column so it produces no
-    # field row of its own, only the Referenced By group below.
-    assert len(view.rows) == 7
+    # rows = [section FIELDS, field id, field creationDate,
+    # section REFERENCED BY, group header, related shop0, related shop1,
+    # related shop2] - "id" is Membership's own primary key/relation
+    # column, so besides its own field row it also drives the Referenced
+    # By group below.
+    assert len(view.rows) == 8
 
     selectable_indices = [i for i, r in enumerate(view.rows) if r.selectable]
-    assert selectable_indices == [1, 4, 5, 6]
+    assert selectable_indices == [1, 2, 5, 6, 7]
 
     seen = [view.selected]
-    for _ in range(4):
+    for _ in range(5):
         view.handle_key(keys.DOWN)
         seen.append(view.selected)
 
-    # Moving down visits every selectable row (the field, then each
+    # Moving down visits every selectable row (both fields, then each
     # related-entity row), then wraps back to the first.
-    assert seen == [1, 4, 5, 6, 1]
+    assert seen == [1, 2, 5, 6, 7, 1]
 
 
 def test_up_down_wraps_across_full_row_count(membership_shop_config, conn_with_three_shops):
@@ -99,7 +100,7 @@ def test_scroll_offset_tracks_selected_row_directly(membership_shop_config, conn
     for _ in range(3):
         view.handle_key(keys.DOWN)
 
-    # selected walks 1 -> 4 -> 5 -> 6 (the selectable rows), and the
+    # selected walks 1 -> 2 -> 5 -> 6 (the selectable rows), and the
     # scroll window re-clamps around each in turn.
     assert view.selected == 6
     assert view.scroll_offset == 5

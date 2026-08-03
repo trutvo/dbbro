@@ -77,6 +77,6 @@ def test_table_view_holds_all_rows_uncapped(membership_shop_config, conn_with_sh
         Breadcrumb(),
         visible_height=5,
     )
-    # FIELDS section (1) + creationDate field (1) + REFERENCED BY section
-    # (1) + group header (1) + 500 related rows.
-    assert len(view.rows) == 504
+    # FIELDS section (1) + id field (1) + creationDate field (1) +
+    # REFERENCED BY section (1) + group header (1) + 500 related rows.
+    assert len(view.rows) == 505

@@ -70,9 +70,7 @@ def test_related_entity_row_target_holds_its_own_record(membership_shop_config, 
     record = {"id": "123456", "creationDate": "2025-11-05 00:39:34"}
     fields = build_fields(table, record)
     rows, row_targets = build_display_rows(fields, table, membership_shop_config, conn_with_shops)
-    related_index = rows.index(
-        DisplayRow("", "      id=1, tsId=1001, name=ShopA, primeMembership_id=123456", "related")
-    )
+    related_index = rows.index(DisplayRow("", "      Shop[1]", "related"))
     target = row_targets[related_index]
     assert isinstance(target, RelatedEntityTarget)
     assert target.target_table == "Shop"
@@ -135,7 +133,10 @@ def test_local_column_row_target_holds_first_relations_matches(
     record = {"id": "99", "categoryRef": "XYZ", "note": "n/a"}
     fields = build_fields(table, record)
     rows, row_targets = build_display_rows(fields, table, order_category_config, conn_with_categories)
-    reference_index = rows.index(DisplayRow("    categoryRef", "Category[XYZ]", "reference"))
+    # With matches present, the reference value is now the resolved target
+    # record rendered via format_record (Category has no `repr`, so it
+    # falls back to its primary key value), not the raw FK value.
+    reference_index = rows.index(DisplayRow("    categoryRef", "Category[1]", "reference"))
     target = row_targets[reference_index]
     assert isinstance(target, LocalColumnTarget)
     assert target.target_table == "Category"
@@ -214,13 +215,12 @@ def test_multi_relation_local_column_target_reflects_first_configured_relation_o
     record = {"id": "99", "categoryRef": "XYZ", "note": "n/a"}
     fields = build_fields(table, record)
     rows, row_targets = build_display_rows(fields, table, multi_relation_order_config, conn)
-    # fields.py's relations_by_local_column dict keeps the *last* relation
-    # for a given local column, so the displayed value reflects Category2;
-    # but build_display_rows itself walks table.relations in order and
-    # uses column_relations[0] (Category, the first configured) for the
-    # LocalColumnTarget - this is the "dict limitation" the test name
-    # refers to.
-    reference_index = rows.index(DisplayRow("    categoryRef", "Category2[XYZ]", "reference"))
+    # build_display_rows walks table.relations in order and uses
+    # column_relations[0] (Category, the first configured) for both the
+    # displayed value and the LocalColumnTarget - this is the "dict
+    # limitation" the test name refers to (fields.py's own
+    # relations_by_local_column dict would have kept Category2 instead).
+    reference_index = rows.index(DisplayRow("    categoryRef", "Category[1]", "reference"))
     target = row_targets[reference_index]
     assert isinstance(target, LocalColumnTarget)
     assert target.target_table == "Category"
