@@ -118,6 +118,21 @@ def validate_relations(raw: dict) -> list[ConfigIssue]:
     return issues
 
 
+def validate_no_inline_connections(raw: dict) -> list[ConfigIssue]:
+    issues: list[ConfigIssue] = []
+    for key in ("connections", "default"):
+        if key in raw:
+            issues.append(
+                ConfigIssue(
+                    message=(
+                        f"'{key}' is no longer read from the schema config; move it "
+                        "to the file passed via --connections"
+                    )
+                )
+            )
+    return issues
+
+
 def _build_config(raw: dict) -> Config:
     raw_tables = raw.get("tables") or {}
     tables = {}
@@ -142,7 +157,11 @@ def _build_config(raw: dict) -> Config:
 
 
 def validate_config(raw: dict) -> Config:
-    issues = validate_tables(raw) + validate_relations(raw)
+    issues = (
+        validate_no_inline_connections(raw)
+        + validate_tables(raw)
+        + validate_relations(raw)
+    )
     if issues:
         raise ConfigValidationError(issues)
     return _build_config(raw)

@@ -7,27 +7,33 @@ from dbbro.db.errors import DatabaseConfigError, DatabaseConnectionError
 from dbbro.db.models import DatabaseConfig
 
 
-def _write_good_config(tmp_path, database_yaml):
+def _write_good_config(tmp_path):
     config_path = tmp_path / "cfg.yaml"
     config_path.write_text(
-        f"""
+        """
 tables:
   Company:
     columns: [id, name]
     primary_key: id
     search_columns: [name]
-{database_yaml}
 """
     )
     return config_path
 
 
-def test_main_reports_database_config_error_and_exits_nonzero(tmp_path, capsys):
-    config_path = _write_good_config(
-        tmp_path, "connections:\n  prod:\n    host: h\n"
-    )
+def _write_connections(tmp_path, connections_yaml):
+    connections_path = tmp_path / "connections.yaml"
+    connections_path.write_text(connections_yaml)
+    return connections_path
 
-    exit_code = cli.main(["--config", str(config_path)])
+
+def test_main_reports_database_config_error_and_exits_nonzero(tmp_path, capsys):
+    config_path = _write_good_config(tmp_path)
+    connections_path = _write_connections(tmp_path, "connections:\n  prod:\n    host: h\n")
+
+    exit_code = cli.main(
+        ["--config", str(config_path), "--connections", str(connections_path)]
+    )
 
     assert exit_code != 0
     assert capsys.readouterr().err.strip() != ""
@@ -36,7 +42,8 @@ def test_main_reports_database_config_error_and_exits_nonzero(tmp_path, capsys):
 def test_main_reports_database_connection_error_and_exits_nonzero(
     tmp_path, monkeypatch, capsys
 ):
-    config_path = _write_good_config(
+    config_path = _write_good_config(tmp_path)
+    connections_path = _write_connections(
         tmp_path,
         "connections:\n  prod:\n    host: h\n    name: n\n    user: u\n    password: p\n",
     )
@@ -46,7 +53,9 @@ def test_main_reports_database_connection_error_and_exits_nonzero(
         lambda db_config: (_ for _ in ()).throw(DatabaseConnectionError("boom")),
     )
 
-    exit_code = cli.main(["--config", str(config_path)])
+    exit_code = cli.main(
+        ["--config", str(config_path), "--connections", str(connections_path)]
+    )
 
     assert exit_code != 0
     assert "boom" in capsys.readouterr().err

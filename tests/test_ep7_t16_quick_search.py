@@ -110,6 +110,11 @@ tables:
     columns: [id, uuid, name]
     primary_key: id
     search_columns: [uuid]
+"""
+    )
+    connections_path = tmp_path / "connections.yaml"
+    connections_path.write_text(
+        """
 connections:
   prod:
     host: h
@@ -118,17 +123,23 @@ connections:
     password: p
 """
     )
-    return config_path
+    return config_path, connections_path
 
 
 def test_main_reports_error_and_exits_nonzero_for_invalid_search(tmp_path, monkeypatch, capsys):
-    config_path = _write_config(tmp_path)
+    config_path, connections_path = _write_config(tmp_path)
     monkeypatch.setattr(cli, "connect", lambda db_config: object())
     monkeypatch.setattr(
         cli, "find_matches", lambda conn, table, column, value: __import__("dbbro.search.models", fromlist=["NoMatch"]).NoMatch(table.name, column, value)
     )
 
-    exit_code = cli.main(["--config", str(config_path), "--search", "Company.uuid=nope"])
+    exit_code = cli.main(
+        [
+            "--config", str(config_path),
+            "--connections", str(connections_path),
+            "--search", "Company.uuid=nope",
+        ]
+    )
 
     assert exit_code != 0
     assert "no record found" in capsys.readouterr().err
@@ -137,7 +148,7 @@ def test_main_reports_error_and_exits_nonzero_for_invalid_search(tmp_path, monke
 def test_main_passes_initial_outcome_to_run_ui_on_match(tmp_path, monkeypatch):
     from dbbro.search.models import SingleMatch
 
-    config_path = _write_config(tmp_path)
+    config_path, connections_path = _write_config(tmp_path)
     monkeypatch.setattr(cli, "connect", lambda db_config: object())
     fake_outcome = SingleMatch(table="Company", record={"id": "1", "uuid": "abc", "name": "Acme"})
     monkeypatch.setattr(
@@ -150,14 +161,20 @@ def test_main_passes_initial_outcome_to_run_ui_on_match(tmp_path, monkeypatch):
         lambda config, conn, initial_outcome=None: called.append(initial_outcome),
     )
 
-    exit_code = cli.main(["--config", str(config_path), "--search", "Company.uuid=abc"])
+    exit_code = cli.main(
+        [
+            "--config", str(config_path),
+            "--connections", str(connections_path),
+            "--search", "Company.uuid=abc",
+        ]
+    )
 
     assert exit_code == 0
     assert called == [fake_outcome]
 
 
 def test_main_without_search_flag_passes_no_initial_outcome(tmp_path, monkeypatch):
-    config_path = _write_config(tmp_path)
+    config_path, connections_path = _write_config(tmp_path)
     monkeypatch.setattr(cli, "connect", lambda db_config: object())
     called = []
     monkeypatch.setattr(
@@ -166,7 +183,9 @@ def test_main_without_search_flag_passes_no_initial_outcome(tmp_path, monkeypatc
         lambda config, conn, initial_outcome=None: called.append(initial_outcome),
     )
 
-    exit_code = cli.main(["--config", str(config_path)])
+    exit_code = cli.main(
+        ["--config", str(config_path), "--connections", str(connections_path)]
+    )
 
     assert exit_code == 0
     assert called == [None]

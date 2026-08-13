@@ -113,11 +113,14 @@ No error message ever includes the resolved password.
 ### Run
 
 ```bash
-python -m dbbro.cli --config config.yaml
+python -m dbbro.cli --config config.yaml --connections connections.yaml
 ```
 
-`--config` is the only supported flag; it is required
-(`dbbro/cli.py::build_arg_parser`). On success, dbbro validates the schema,
+`--config` and `--connections` are both required
+(`dbbro/cli.py::build_arg_parser`) — `--config` for the schema, `--connections`
+for the `connections`/`default` mapping (kept out of `--config` so
+credentials don't have to live in a file meant to be shared/committed; see
+`docs/adr/0002-separate-connections-file.md`). On success, dbbro validates the schema,
 resolves and establishes the database connection (in that order), then
 opens the curses UI, starting on the search selection dialog listing every
 declared (table, column) search pair. On any failure — schema or

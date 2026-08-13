@@ -13,12 +13,16 @@ tables:
     primary_key: id
 """
     )
+    connections_path = tmp_path / "connections.yaml"
+    connections_path.write_text("connections:\n  prod:\n    host: h\n")
     called = []
     monkeypatch.setattr(
         cli, "resolve_database_config", lambda raw, env, connection=None: called.append(1)
     )
 
-    exit_code = cli.main(["--config", str(config_path)])
+    exit_code = cli.main(
+        ["--config", str(config_path), "--connections", str(connections_path)]
+    )
 
     assert exit_code != 0
     assert called == []
@@ -35,6 +39,11 @@ tables:
     columns: [id, name]
     primary_key: id
     search_columns: [name]
+"""
+    )
+    connections_path = tmp_path / "connections.yaml"
+    connections_path.write_text(
+        """
 connections:
   prod:
     host: h
@@ -52,7 +61,9 @@ connections:
     monkeypatch.setattr(cli, "connect", lambda db_config: "fake-connection")
     monkeypatch.setattr(cli, "run_ui", lambda config, conn, initial_outcome=None: None)
 
-    exit_code = cli.main(["--config", str(config_path)])
+    exit_code = cli.main(
+        ["--config", str(config_path), "--connections", str(connections_path)]
+    )
 
     assert exit_code == 0
     assert called == [1]

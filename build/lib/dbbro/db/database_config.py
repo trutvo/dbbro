@@ -10,7 +10,8 @@ ALIAS_PATTERN = re.compile(r"^[a-zA-Z0-9_]+$")
 def resolve_database_config(
     raw: dict, env: Mapping[str, str], connection: str | None = None
 ) -> DatabaseConfig:
-    """Reads raw['connections'], picks the connection named by `connection`
+    """Reads raw['connections'] (the parsed contents of the --connections
+    file), picks the connection named by `connection`
     (falling back to raw['default'], then to the sole entry if there's only
     one), resolves its password/host, and returns a DatabaseConfig. Raises
     DatabaseConfigError collecting every problem found (missing/empty
