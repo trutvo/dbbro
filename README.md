@@ -113,8 +113,11 @@ No error message ever includes the resolved password.
 ### Run
 
 ```bash
-python -m dbbro.cli --config config.yaml --connections connections.yaml
+dbbro --config config.yaml --connections connections.yaml
 ```
+
+(`dbbro` is installed as a console script via `pip install -e .`; equivalently
+you can run `python -m dbbro.cli --config config.yaml --connections connections.yaml`.)
 
 `--config` and `--connections` are both required
 (`dbbro/cli.py::build_arg_parser`) — `--config` for the schema, `--connections`
@@ -273,9 +276,10 @@ graph TD
 - No containerization, CI/CD pipeline, or hosting configuration exists in
   this repository (no `Dockerfile`, no `.github/workflows`).
 - The application is installed and run locally as a Python package: install
-  with `uv`/`pip` (see `pyproject.toml`, `uv.lock`), then invoke
-  `python -m dbbro.cli --config <path>`. It requires network access to a
-  reachable MySQL server at the configured host/port.
+  with `uv`/`pip` (see `pyproject.toml`, `uv.lock`), which registers the
+  `dbbro` console script (`[project.scripts]`), then invoke
+  `dbbro --config <path> --connections <path>`. It requires network access
+  to a reachable MySQL server at the configured host/port.
 
 ## 8. Cross-cutting concepts
 
